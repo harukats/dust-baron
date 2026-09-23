@@ -1,10 +1,14 @@
 import Phaser from 'phaser';
-import { COLOR, TEX, WIDTH, HEIGHT } from '../config.ts';
+import { COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { formatNum, formatTime } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { addBackdrop, drawPlate, fitImage, label } from '../ui.ts';
 
-export interface VictoryData { time: number; total: number; clicks: number }
+export interface VictoryData {
+  time: number;
+  total: number;
+  clicks: number;
+}
 
 /** Victory: you bought the Dust Crown. Tap to keep digging — the run continues. */
 export class Victory extends Phaser.Scene {
@@ -19,7 +23,10 @@ export class Victory extends Phaser.Scene {
     label(this, WIDTH / 2, HEIGHT * 0.42, 'THE WASTES ARE YOURS', 44, COLOR.hazard, 0.5, 0.5);
     label(this, WIDTH / 2, HEIGHT * 0.42 + 46, 'You claimed the Dust Crown.', 22, COLOR.sand, 0.5, 0.5);
 
-    const pw = 480, ph = 150, px = WIDTH / 2 - pw / 2, py = HEIGHT * 0.56;
+    const pw = 480,
+      ph = 150,
+      px = WIDTH / 2 - pw / 2,
+      py = HEIGHT * 0.56;
     drawPlate(this.add.graphics(), px, py, pw, ph);
     const rows: [string, string][] = [
       ['TIME TO THE CROWN', formatTime(data.time ?? 0)],
@@ -32,12 +39,23 @@ export class Victory extends Phaser.Scene {
     });
 
     const fireworks = this.add.particles(0, 0, TEX.spark, {
-      speed: { min: 80, max: 320 }, lifespan: 1300, gravityY: 140, scale: { start: 0.8, end: 0 },
-      tint: [COLOR.hazard, COLOR.chrome, COLOR.rust], blendMode: Phaser.BlendModes.ADD, emitting: false,
+      speed: { min: 80, max: 320 },
+      lifespan: 1300,
+      gravityY: 140,
+      scale: { start: 0.8, end: 0 },
+      tint: [COLOR.hazard, COLOR.chrome, COLOR.rust],
+      blendMode: Phaser.BlendModes.ADD,
+      emitting: false,
     });
     this.time.addEvent({
-      delay: 400, repeat: 7,
-      callback: () => fireworks.explode(60, Phaser.Math.Between(WIDTH * 0.2, WIDTH * 0.8), Phaser.Math.Between(HEIGHT * 0.15, HEIGHT * 0.45)),
+      delay: 400,
+      repeat: 7,
+      callback: () =>
+        fireworks.explode(
+          60,
+          Phaser.Math.Between(WIDTH * 0.2, WIDTH * 0.8),
+          Phaser.Math.Between(HEIGHT * 0.15, HEIGHT * 0.45),
+        ),
     });
     new Sfx(this.sound).play('fanfare');
 

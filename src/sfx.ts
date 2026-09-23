@@ -1,23 +1,23 @@
 // Tiny WebAudio synth for one-shot SFX. Phaser 4 plays files but has no synth, so
 // these are built from oscillators/noise and routed into Phaser's own sound graph
 // (its `destination`), so the game-wide mute and volume apply to them too.
-import Phaser from 'phaser';
+import type Phaser from 'phaser';
 
 interface Voice {
   type?: OscillatorType | 'noise';
   freq?: number;
   freqEnd?: number;
-  notes?: number[];      // Hz steps, each `step` seconds
+  notes?: number[]; // Hz steps, each `step` seconds
   step?: number;
-  dur?: number;          // seconds (ignored when `notes` is set)
+  dur?: number; // seconds (ignored when `notes` is set)
   vol?: number;
   attack?: number;
   filter?: { type: BiquadFilterType; freq: number; freqEnd?: number; q?: number };
-  jitter?: number;       // ±fraction of random pitch
+  jitter?: number; // ±fraction of random pitch
   delay?: number;
 }
 
-const note = (n: number): number => 440 * Math.pow(2, (n - 69) / 12); // MIDI → Hz
+const note = (n: number): number => 440 * 2 ** ((n - 69) / 12); // MIDI → Hz
 
 export const SFX: Record<string, Voice[]> = {
   dig: [
@@ -29,9 +29,18 @@ export const SFX: Record<string, Voice[]> = {
   click: [{ type: 'square', freq: 660, dur: 0.04, vol: 0.18 }],
   cache: [{ type: 'square', notes: [note(76), note(79), note(83), note(88)], step: 0.06, vol: 0.28 }],
   chime: [{ type: 'sine', notes: [1800, 2400], step: 0.1, vol: 0.2 }],
-  storm: [{ type: 'noise', dur: 1.6, vol: 0.35, attack: 0.5, filter: { type: 'bandpass', freq: 400, freqEnd: 1600, q: 2 } }],
+  storm: [
+    { type: 'noise', dur: 1.6, vol: 0.35, attack: 0.5, filter: { type: 'bandpass', freq: 400, freqEnd: 1600, q: 2 } },
+  ],
   start: [{ type: 'square', notes: [note(60), note(67), note(72)], step: 0.08, vol: 0.3 }],
-  fanfare: [{ type: 'square', notes: [note(60), note(64), note(67), note(72), note(72), 0, note(67), note(72), note(72), note(72)], step: 0.11, vol: 0.35 }],
+  fanfare: [
+    {
+      type: 'square',
+      notes: [note(60), note(64), note(67), note(72), note(72), 0, note(67), note(72), note(72), note(72)],
+      step: 0.11,
+      vol: 0.35,
+    },
+  ],
 };
 
 export class Sfx {
@@ -56,7 +65,7 @@ export class Sfx {
 
   private voice(ctx: AudioContext, out: AudioNode, v: Voice): void {
     const t0 = ctx.currentTime + (v.delay ?? 0);
-    const dur = v.notes ? v.notes.length * (v.step ?? 0.1) : v.dur ?? 0.15;
+    const dur = v.notes ? v.notes.length * (v.step ?? 0.1) : (v.dur ?? 0.15);
     const vol = v.vol ?? 0.3;
     const attack = v.attack ?? 0.005;
 
@@ -88,7 +97,8 @@ export class Sfx {
       o.type = v.type ?? 'square';
       const j = 1 + (Math.random() * 2 - 1) * (v.jitter ?? 0);
       if (v.notes) {
-        v.notes.forEach((hz, i) => o.frequency.setValueAtTime(Math.max(1, hz) * j, t0 + i * (v.step ?? 0.1)));
+        for (const [i, hz] of v.notes.entries())
+          o.frequency.setValueAtTime(Math.max(1, hz) * j, t0 + i * (v.step ?? 0.1));
       } else {
         o.frequency.setValueAtTime((v.freq ?? 440) * j, t0);
         if (v.freqEnd) o.frequency.exponentialRampToValueAtTime(v.freqEnd * j, t0 + dur);

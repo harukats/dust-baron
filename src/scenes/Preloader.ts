@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOR, GENS, MUSIC, PIXEL_TEXTURES, TEX, WIDTH, HEIGHT } from '../config.ts';
+import { COLOR, GENS, HEIGHT, MUSIC, PIXEL_TEXTURES, TEX, WIDTH } from '../config.ts';
 import { label } from '../ui.ts';
 
 /** Preloader: load every asset in public/assets/ behind a progress bar. */

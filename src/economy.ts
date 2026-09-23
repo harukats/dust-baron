@@ -1,18 +1,27 @@
 // Pure economy logic — no Phaser, no DOM — tested by economy.test.ts under Node.
 import {
-  GENS, COST_GROWTH, MILESTONES, PICK_BASE_COST, PICK_COST_GROWTH, CLICK_PS_FRAC,
-  CROWN_COST, STORM_MULT, OFFLINE_MIN_S, OFFLINE_CAP_S, OFFLINE_RATE,
+  CLICK_PS_FRAC,
+  COST_GROWTH,
+  CROWN_COST,
+  GENS,
+  MILESTONES,
+  OFFLINE_CAP_S,
+  OFFLINE_MIN_S,
+  OFFLINE_RATE,
+  PICK_BASE_COST,
+  PICK_COST_GROWTH,
+  STORM_MULT,
 } from './config.ts';
 
 export interface State {
-  scrap: number;      // spendable
-  total: number;      // lifetime earned
+  scrap: number; // spendable
+  total: number; // lifetime earned
   clicks: number;
-  owned: number[];    // per generator
-  pick: number;       // Forge Pick level
+  owned: number[]; // per generator
+  pick: number; // Forge Pick level
   won: boolean;
-  playTime: number;   // seconds
-  lastSave: number;   // epoch ms
+  playTime: number; // seconds
+  lastSave: number; // epoch ms
 }
 
 export function newState(): State {
@@ -22,14 +31,14 @@ export function newState(): State {
 /** Cost of buying `qty` more of generator `i` when `owned` are already owned. */
 export function genCost(i: number, owned: number, qty = 1): number {
   const g = COST_GROWTH;
-  return Math.ceil(GENS[i]!.baseCost * Math.pow(g, owned) * (Math.pow(g, qty) - 1) / (g - 1));
+  return Math.ceil((GENS[i].baseCost * g ** owned * (g ** qty - 1)) / (g - 1));
 }
 
 /** How many of generator `i` `scrap` can buy right now (0 if none). */
 export function maxAffordable(i: number, owned: number, scrap: number): number {
   const g = COST_GROWTH;
-  const first = GENS[i]!.baseCost * Math.pow(g, owned);
-  let k = Math.floor(Math.log(scrap * (g - 1) / first + 1) / Math.log(g));
+  const first = GENS[i].baseCost * g ** owned;
+  let k = Math.floor(Math.log((scrap * (g - 1)) / first + 1) / Math.log(g));
   if (!Number.isFinite(k) || k < 0) k = 0;
   while (k > 0 && genCost(i, owned, k) > scrap) k--;
   return k;
@@ -49,7 +58,7 @@ export function nextMilestone(owned: number): number | null {
 }
 
 export function genRate(i: number, owned: number): number {
-  return GENS[i]!.rate * owned * milestoneMult(owned);
+  return GENS[i].rate * owned * milestoneMult(owned);
 }
 
 export function perSecond(s: State, storm = false): number {
@@ -59,11 +68,11 @@ export function perSecond(s: State, storm = false): number {
 }
 
 export function clickPower(s: State, ps: number): number {
-  return Math.pow(2, s.pick) + ps * CLICK_PS_FRAC * s.pick;
+  return 2 ** s.pick + ps * CLICK_PS_FRAC * s.pick;
 }
 
 export function pickCost(level: number): number {
-  return Math.ceil(PICK_BASE_COST * Math.pow(PICK_COST_GROWTH, level));
+  return Math.ceil(PICK_BASE_COST * PICK_COST_GROWTH ** level);
 }
 
 export function earn(s: State, amount: number): void {
@@ -100,7 +109,7 @@ export function buyCrown(s: State): boolean {
 
 /** A generator row is revealed once the previous tier is owned or you're close to affording it. */
 export function isRevealed(s: State, i: number): boolean {
-  return i === 0 || (s.owned[i - 1] ?? 0) > 0 || s.total >= GENS[i]!.baseCost * 0.6;
+  return i === 0 || (s.owned[i - 1] ?? 0) > 0 || s.total >= GENS[i].baseCost * 0.6;
 }
 
 /** Scrap earned while away for `secondsAway`. */
@@ -140,12 +149,17 @@ export function formatNum(n: number): string {
   if (!Number.isFinite(n)) return 'INF';
   if (n < 1000) return n < 10 && n % 1 !== 0 ? n.toFixed(1) : Math.floor(n).toString();
   let u = -1;
-  while (n >= 1000 && u < UNITS.length - 1) { n /= 1000; u++; }
+  while (n >= 1000 && u < UNITS.length - 1) {
+    n /= 1000;
+    u++;
+  }
   const s = n < 10 ? n.toFixed(2) : n < 100 ? n.toFixed(1) : Math.floor(n).toString();
   return s + UNITS[u];
 }
 
 export function formatTime(sec: number): string {
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+  const h = Math.floor(sec / 3600),
+    m = Math.floor((sec % 3600) / 60),
+    s = Math.floor(sec % 60);
   return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
 }

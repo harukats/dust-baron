@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { WIDTH, HEIGHT } from './config.ts';
+import { HEIGHT, WIDTH } from './config.ts';
 import { Boot } from './scenes/Boot.ts';
+import { Game } from './scenes/Game.ts';
 import { Preloader } from './scenes/Preloader.ts';
 import { Title } from './scenes/Title.ts';
-import { Game } from './scenes/Game.ts';
 import { Victory } from './scenes/Victory.ts';
 
 const config: Phaser.Types.Core.GameConfig = {

@@ -27,8 +27,16 @@ export class ShopRow {
   private sig = '';
   private last: RowView | null = null;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, w: number, h: number, iconKey: string,
-    onClick: () => void, crown = false) {
+  constructor(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    iconKey: string,
+    onClick: () => void,
+    crown = false,
+  ) {
     this.box = { x, y, w, h };
     this.crown = crown;
     this.g = scene.add.graphics();
@@ -41,8 +49,14 @@ export class ShopRow {
 
     const zone = scene.add.zone(x, y, w, h).setOrigin(0).setInteractive({ useHandCursor: true });
     zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
-    zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => { this.hover = true; this.redraw(); });
-    zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => { this.hover = false; this.redraw(); });
+    zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OVER, () => {
+      this.hover = true;
+      this.redraw();
+    });
+    zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_OUT, () => {
+      this.hover = false;
+      this.redraw();
+    });
   }
 
   set(v: RowView): void {
@@ -66,7 +80,10 @@ export class ShopRow {
     if (this.crown) {
       drawPlate(g, x, y, w, h, v.done ? COLOR.win : COLOR.gold, v.affordable ? COLOR.hazard : COLOR.goldRim, 0.95, 2);
       if (v.progress !== undefined) {
-        const bx = this.title.x, by = y + h * 0.62, bw = x + w - 14 - bx, bh = Math.max(8, h * 0.2);
+        const bx = this.title.x,
+          by = y + h * 0.62,
+          bw = x + w - 14 - bx,
+          bh = Math.max(8, h * 0.2);
         g.fillStyle(COLOR.shadow, 0.9).fillRect(bx, by, bw, bh);
         g.fillStyle(COLOR.hazard, 1).fillRect(bx, by, bw * Math.min(1, v.progress), bh);
       }
