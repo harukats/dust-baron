@@ -1,0 +1,36 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Dust Baron",
+  "version": "../package.json",
+  "identifier": "io.github.harukats.dustbaron",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:8080",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Dust Baron",
+        "width": 1280,
+        "height": 720,
+        "minWidth": 640,
+        "minHeight": 360,
+        "center": true,
+        "resizable": true,
+        "backgroundColor": "#1a0f0a"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "SimulationGame",
+    "shortDescription": "Post-apocalyptic desert idle miner",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+  }
+}

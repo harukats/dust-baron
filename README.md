@@ -50,6 +50,20 @@ pnpm dev        # http://localhost:8080
 
 `dist/` は相対パスで出力されるので、そのまま任意の静的ホスティングに置けます。
 
+### デスクトップ版(Tauri)
+
+[Tauri 2](https://v2.tauri.app/) でデスクトップアプリとしても動かせます。設定は `src-tauri/` にあります。
+事前に [Rust](https://rustup.rs/) と、OS ごとの[依存パッケージ](https://v2.tauri.app/start/prerequisites/)が必要です
+(Windows は WebView2 と MSVC Build Tools、Linux は `libwebkit2gtk-4.1-dev` など)。
+
+| コマンド | 内容 |
+|---|---|
+| `pnpm tauri dev` | Vite 開発サーバーを起動し、デスクトップウィンドウで開く |
+| `pnpm tauri build` | `pnpm build` のあと、インストーラーを `src-tauri/target/release/bundle/` に出力 |
+
+セーブはブラウザ版と同じく `localStorage` ですが、保存先は WebView のアプリ用領域になるため、ブラウザ版とは共有されません。
+GitHub Actions の `Desktop` ワークフロー(手動実行か `v*` タグで起動)で、Windows・macOS・Linux 向けのバンドルを作れます。
+
 ### 構成
 
 ```
@@ -59,6 +73,7 @@ src/
   scenes/                             # Boot → Preloader → Title → Game → Victory
   ShopRow.ts, ui.ts, sfx.ts           # UI 部品と、WebAudio で合成する効果音
 public/assets/                        # 画像と BGM
+src-tauri/                            # Tauri のデスクトップ版(設定・アイコン・Rust のエントリポイント)
 ```
 
 ゲームのルールは Phaser から切り離した純粋な関数として書いており、ブラウザなしでテストできます。
