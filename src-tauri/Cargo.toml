@@ -1,6 +1,6 @@
 [package]
 name = "dust-baron"
-version = "0.1.0"
+version = "0.1.1"
 description = "Dust Baron: a post-apocalyptic desert idle miner"
 authors = ["harukats"]
 license = "MIT"
