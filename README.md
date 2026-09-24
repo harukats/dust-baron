@@ -72,6 +72,7 @@ git tag v0.2.0 && git push origin v0.2.0
 
 3 OS のバンドルがそろうと、GitHub Releases にリリースノート付きで公開されます。
 タグと `version` が一致しないときは、ビルド前に失敗します。`v0.2.0-beta.1` のようにハイフンを含むタグは pre-release になります。
+Windows 向けには 2 種類のインストーラーがあります。`*-setup.exe` はユーザー単位のインストールで、管理者権限は要りません。`*.msi` は全ユーザー向けに `Program Files` へインストールするもので、管理者権限が必要です。
 インストーラーは未署名なので、初回起動時に Windows の SmartScreen や macOS の Gatekeeper の警告が出ます。
 
 ### 構成
