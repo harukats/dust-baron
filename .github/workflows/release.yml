@@ -1,15 +1,25 @@
-name: Desktop
+name: Release
 
-# Builds the Tauri desktop bundles. Manual or on version tags only: the macOS and
-# Windows runners are slow, so this stays out of the per-push CI. A `v*` tag also
-# publishes the bundles as a GitHub Release.
+# A `v*` tag builds the Tauri desktop bundles for all three OSes. Once they all
+# succeed, it publishes them as a GitHub Release and deploys the web build to
+# GitHub Pages; hyphenated pre-release tags skip Pages. The macOS and Windows
+# runners are slow, so this stays out of the per-push CI.
+#
+# Manual runs: with no input, only the desktop bundles are built (uploaded as
+# workflow artifacts). With `pages_tag`, the bundles are skipped and only Pages is
+# redeployed from that tag's source.
 on:
   workflow_dispatch:
+    inputs:
+      pages_tag:
+        description: Redeploy GitHub Pages from this tag (e.g. v0.1.0). Leave empty to build the desktop bundles.
+        type: string
+        default: ''
   push:
     tags: ['v*']
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.pages_tag }}
   cancel-in-progress: true
 
 permissions:
@@ -17,6 +27,7 @@ permissions:
 
 jobs:
   bundle:
+    if: inputs.pages_tag == ''
     strategy:
       fail-fast: false
       matrix:
@@ -94,3 +105,54 @@ jobs:
           find bundles -type f -print0 | xargs -0 gh release create "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
             --title "Dust Baron $GITHUB_REF_NAME" "${flags[@]}"
+
+  pages-build:
+    # Needs the bundles on a tag push (so the web and desktop versions ship
+    # together), but runs alone on a manual `pages_tag` redeploy, where `bundle`
+    # is skipped. `!failure()` lets it run past skipped jobs but not failed ones.
+    needs: [bundle, release]
+    if: >-
+      !cancelled() && !failure() && (
+        (github.event_name == 'push' && !contains(github.ref_name, '-')) ||
+        inputs.pages_tag != ''
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check pages_tag
+        if: inputs.pages_tag != ''
+        env:
+          TAG: ${{ inputs.pages_tag }}
+        run: |
+          if [[ "$TAG" != v* ]]; then
+            echo "::error::pages_tag must be a v* tag, got '$TAG'"
+            exit 1
+          fi
+      - uses: actions/checkout@v7
+        with:
+          # refs/tags/ makes a branch name or a missing tag fail here.
+          ref: ${{ inputs.pages_tag != '' && format('refs/tags/{0}', inputs.pages_tag) || github.ref }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # typecheck + tests + vite build; `base: './'` keeps it working under /dust-baron/
+      - run: pnpm build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  pages-deploy:
+    needs: pages-build
+    if: ${{ !cancelled() && needs.pages-build.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

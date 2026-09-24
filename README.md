@@ -5,6 +5,9 @@
 
 ![Dust Baron のプレイ画面](docs/screenshot.png)
 
+**ブラウザで遊ぶ:** https://harukats.github.io/dust-baron/
+デスクトップ版(Windows / macOS / Linux)は [Releases](https://github.com/harukats/dust-baron/releases) からダウンロードできます。
+
 ## 遊び方
 
 鉱床をクリックしてスクラップを掘り、Supply Depot でクルーや機械を雇って採掘を自動化します。
@@ -62,18 +65,32 @@ pnpm dev        # http://localhost:8080
 | `pnpm tauri build` | `pnpm build` のあと、インストーラーを `src-tauri/target/release/bundle/` に出力 |
 
 セーブはブラウザ版と同じく `localStorage` ですが、保存先は WebView のアプリ用領域になるため、ブラウザ版とは共有されません。
-GitHub Actions の `Desktop` ワークフロー(手動実行か `v*` タグで起動)で、Windows・macOS・Linux 向けのバンドルを作れます。
+Windows 向けには 2 種類のインストーラーがあります。`*-setup.exe` はユーザー単位のインストールで、管理者権限は要りません。`*.msi` は全ユーザー向けに `Program Files` へインストールするもので、管理者権限が必要です。
+インストーラーは未署名なので、初回起動時に Windows の SmartScreen や macOS の Gatekeeper の警告が出ます。
 
-リリースするときは、`package.json` の `version` を上げてコミットしてから、同じ番号のタグを push します。
+### リリース
+
+Web 版とデスクトップ版は、GitHub Actions の `Release` ワークフロー(`.github/workflows/release.yml`)で同時にリリースします。
+`package.json` の `version` を上げてコミットしてから、同じ番号のタグを push します。
 
 ```sh
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-3 OS のバンドルがそろうと、GitHub Releases にリリースノート付きで公開されます。
-タグと `version` が一致しないときは、ビルド前に失敗します。`v0.2.0-beta.1` のようにハイフンを含むタグは pre-release になります。
-Windows 向けには 2 種類のインストーラーがあります。`*-setup.exe` はユーザー単位のインストールで、管理者権限は要りません。`*.msi` は全ユーザー向けに `Program Files` へインストールするもので、管理者権限が必要です。
-インストーラーは未署名なので、初回起動時に Windows の SmartScreen や macOS の Gatekeeper の警告が出ます。
+1. Windows・macOS・Linux 向けのバンドルをビルドします。タグと `version` が一致しないときは、ビルド前に失敗します。
+2. 3 OS ともビルドに成功すると、GitHub Releases にリリースノート付きで公開します。
+3. 続けて Web 版をビルドし、[GitHub Pages](https://harukats.github.io/dust-baron/) を更新します。
+
+`v0.2.0-beta.1` のようにハイフンを含むタグは pre-release になり、GitHub Pages は更新しません。
+
+ワークフローは手動でも実行できます(`gh workflow run release.yml`)。
+
+| 実行方法 | 内容 |
+|---|---|
+| 入力なし | デスクトップ版のバンドルをビルドし、ワークフローの成果物に置くだけ(公開はしない) |
+| `-f pages_tag=v0.1.0` のように入力 | バンドルは作らず、そのタグの内容で GitHub Pages だけを公開し直す |
+
+Web 版のセーブは `harukats.github.io` の `localStorage` に保存されます。ローカルの開発環境やデスクトップ版のセーブとは別です。
 
 ### 構成
 
