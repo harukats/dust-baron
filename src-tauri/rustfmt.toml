@@ -1,0 +1,2 @@
+# Match the 2-space indent used across the repo (Biome).
+tab_spaces = 2
