@@ -71,17 +71,24 @@ Windows 向けには 2 種類のインストーラーがあります。`*-setup.
 ### リリース
 
 Web 版とデスクトップ版は、GitHub Actions の `Release` ワークフロー(`.github/workflows/release.yml`)で同時にリリースします。
-`package.json` の `version` を上げてコミットしてから、同じ番号のタグを push します。
+`main` は保護されているので、`version` の変更も PR でマージします。
+
+1. ブランチで `package.json` の `version` を上げ、PR を作ってマージします。
+2. マージ後の `main` で、同じ番号のタグを push します。
 
 ```sh
+git switch main && git pull
 git tag v0.2.0 && git push origin v0.2.0
 ```
+
+ワークフローは、次のように進みます。
 
 1. Windows・macOS・Linux 向けのバンドルをビルドします。タグと `version` が一致しないときは、ビルド前に失敗します。
 2. 3 OS ともビルドに成功すると、GitHub Releases にリリースノート付きで公開します。
 3. 続けて Web 版をビルドし、[GitHub Pages](https://harukats.github.io/dust-baron/) を更新します。
 
 `v0.2.0-beta.1` のようにハイフンを含むタグは pre-release になり、GitHub Pages は更新しません。
+`v*` のタグは保護されていて、一度 push したタグは削除も付け替えもできません。番号を間違えたときは、次の番号で出し直してください。
 
 ワークフローは手動でも実行できます(`gh workflow run release.yml`)。
 
