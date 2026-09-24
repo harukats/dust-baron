@@ -1,0 +1,27 @@
+name: Dependabot auto-merge
+
+# Turns on auto-merge for Dependabot's patch and minor npm / GitHub Actions PRs,
+# so they land once the required `lint` and `test` checks pass. Majors and Cargo
+# updates stay manual: CI doesn't compile the Rust side (only the Release
+# workflow does), so a Cargo bump would merge untested.
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v3
+      - if: >-
+          steps.meta.outputs.update-type != 'version-update:semver-major' &&
+          steps.meta.outputs.package-ecosystem != 'cargo'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        # main requires linear history, so squash rather than a merge commit.
+        run: gh pr merge --auto --squash "$PR_URL"
