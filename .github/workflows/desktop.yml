@@ -1,7 +1,8 @@
 name: Desktop
 
 # Builds the Tauri desktop bundles. Manual or on version tags only: the macOS and
-# Windows runners are slow, so this stays out of the per-push CI.
+# Windows runners are slow, so this stays out of the per-push CI. A `v*` tag also
+# publishes the bundles as a GitHub Release.
 on:
   workflow_dispatch:
   push:
@@ -29,6 +30,17 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
+      # The bundles take their version from package.json, so a mismatched tag would
+      # publish e.g. "v0.2.0" with 0.1.0 installers. Fail before the slow build.
+      - name: Check tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
@@ -60,3 +72,25 @@ jobs:
             src-tauri/target/**/release/bundle/**/*.rpm
             src-tauri/target/**/release/bundle/**/*.AppImage
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: bundles
+          merge-multiple: true
+      # Tags with a hyphen (v0.2.0-beta.1) become pre-releases.
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          [[ "$GITHUB_REF_NAME" == *-* ]] && flags+=(--prerelease)
+          find bundles -type f -print0 | xargs -0 gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes \
+            --title "Dust Baron $GITHUB_REF_NAME" "${flags[@]}"

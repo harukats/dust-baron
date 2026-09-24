@@ -64,6 +64,16 @@ pnpm dev        # http://localhost:8080
 セーブはブラウザ版と同じく `localStorage` ですが、保存先は WebView のアプリ用領域になるため、ブラウザ版とは共有されません。
 GitHub Actions の `Desktop` ワークフロー(手動実行か `v*` タグで起動)で、Windows・macOS・Linux 向けのバンドルを作れます。
 
+リリースするときは、`package.json` の `version` を上げてコミットしてから、同じ番号のタグを push します。
+
+```sh
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+3 OS のバンドルがそろうと、GitHub Releases にリリースノート付きで公開されます。
+タグと `version` が一致しないときは、ビルド前に失敗します。`v0.2.0-beta.1` のようにハイフンを含むタグは pre-release になります。
+インストーラーは未署名なので、初回起動時に Windows の SmartScreen や macOS の Gatekeeper の警告が出ます。
+
 ### 構成
 
 ```
