@@ -101,6 +101,7 @@ src/
   scenes/                             # Boot → Preloader → Title → Game → Victory
   ShopRow.ts, ui.ts, sfx.ts           # UI 部品と、WebAudio で合成する効果音
 public/assets/                        # 画像と BGM
+public/                               # Web 版のアイコン(favicon.ico, apple-touch-icon.png)
 src-tauri/                            # Tauri のデスクトップ版(設定・アイコン・Rust のエントリポイント)
 ```
 
@@ -115,4 +116,4 @@ src-tauri/                            # Tauri のデスクトップ版(設定・
 ## ライセンス
 
 ソースコードとアセットはすべて [MIT License](LICENSE) で公開しています。
-アセットには、`public/assets/` の画像と BGM、`docs/screenshot.png`、アプリのアイコン(`src-tauri/app-icon.png` と `src-tauri/icons/`)が含まれます。
+アセットには、`public/assets/` の画像と BGM、`docs/screenshot.png`、アプリのアイコン(`public/favicon.ico`、`public/apple-touch-icon.png`、`src-tauri/app-icon.png`、`src-tauri/icons/`)が含まれます。
