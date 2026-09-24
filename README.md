@@ -97,13 +97,5 @@ src-tauri/                            # Tauri のデスクトップ版(設定・
 
 ## ライセンス
 
-ソースコードは [MIT License](LICENSE) で公開しています。
-
-ただし、次の生成アセットは MIT License の対象外です。
-
-- `public/assets/` の画像と BGM
-- `docs/screenshot.png`
-- `src-tauri/app-icon.png` と、そこから生成した `src-tauri/icons/`
-
-これらは Phaser Game Agent で生成したもので、再配布や改変の条件はまだ定めていません。
-利用したい場合は、Issue などでご相談ください。
+ソースコードとアセットはすべて [MIT License](LICENSE) で公開しています。
+アセットには、`public/assets/` の画像と BGM、`docs/screenshot.png`、アプリのアイコン(`src-tauri/app-icon.png` と `src-tauri/icons/`)が含まれます。
