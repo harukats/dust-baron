@@ -82,13 +82,21 @@ export class Victory extends Phaser.Scene {
 
     // A short grace period so the click that bought the crown doesn't skip this screen.
     this.time.delayedCall(800, () => {
-      this.input.on(
-        Phaser.Input.Events.POINTER_DOWN,
-        (_pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
-          if (over.length === 0 && canPlay()) this.scene.start('Game');
-        },
-      );
-      this.input.keyboard?.once('keydown-SPACE', () => this.scene.start('Game'));
+      const onSpace = () => {
+        if (!canPlay()) return;
+        this.input.off(Phaser.Input.Events.POINTER_DOWN, onPointerDown);
+        this.input.keyboard?.off('keydown-SPACE', onSpace);
+        this.scene.start('Game');
+      };
+      const onPointerDown = (_pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+        if (over.length === 0) onSpace();
+      };
+      this.input.on(Phaser.Input.Events.POINTER_DOWN, onPointerDown);
+      this.input.keyboard?.on('keydown-SPACE', onSpace);
+      this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+        this.input.off(Phaser.Input.Events.POINTER_DOWN, onPointerDown);
+        this.input.keyboard?.off('keydown-SPACE', onSpace);
+      });
     });
   }
 }

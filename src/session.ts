@@ -24,7 +24,7 @@ export async function acquireSession(): Promise<PlaySession> {
   const result = new Promise<PlaySession>((resolve) => {
     announce = resolve;
   });
-  let request: Promise<void>;
+  let request: Promise<void> = Promise.resolve();
   const session: PlaySession = {
     mode: 'acquiring',
     async release() {

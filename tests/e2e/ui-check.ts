@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
+import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import { clickGame, fixture, start, state, type TestScene, texts, title } from './helpers.ts';
 
 type UiScene = TestScene & { spawnCache(): void; collectCache(): void };
+
+await mkdir('test-results', { recursive: true });
 
 const browser = await chromium.launch();
 try {
