@@ -37,26 +37,27 @@ Forge Pickは残高とレベル、Dust Crownは残高とwonを同時更新する
 | --- | --- | --- |
 | ライブrun | state: State または null | シーンをまたぐ同じ進行 |
 | 生産カーソル | accountedAtMs: number | この時刻まで精算済み |
-| セッション | status: acquiring / owned / blocked / unavailable / released | プレイと保存を許可する状態 |
+| セッション | status: acquiring / owned / blocked / ephemeral / released | プレイと保存を許可する状態 |
 | ロック | name、保持Promiseの解放関数 | 保存キーごとの排他。セーブに書かない |
 | 一時効果 | stormEndsAtMs、frenzyEndsAtMs、cacheExpiresAtMs | 実時刻に基づく失効 |
 
 カーソルは成功保存日時とは独立する。精算してからカーソルを前へ進め、同じ時刻の再精算は0とする。
-生産・購入・採掘・保存はownedだけが実行する。blockedはStateを初期化・読み込みしない。
+生産・購入・採掘はownedとephemeralが実行できる。共有保存の読込・書込・削除はownedだけが実行する。blockedはStateを初期化・読み込みしない。ephemeralはnewStateからメモリ内runを開始し、離席収入を与えない。
 
 ## 状態遷移
 
-1. 起動 → acquiring → ロック成功ならowned、競合ならblocked、API非対応・例外ならunavailable。
+1. 起動 → acquiring → ロック成功ならowned、競合ならblocked、API非対応・取得例外ならephemeral。
 2. owned → 初回の保存解析 → 正常項目の復旧 → 必要なら離席加算 → 即時保存 → カーソル設定 → Title/Game。
-3. 新規開始はownedだけが実行できる。既存の確認操作を維持して保存を削除し、newStateに切り替える。
-4. ownedの各操作・保存・非表示・復帰で未計上区間を精算する。画面が非表示でもownedを維持する。
+3. ephemeral → 保存解析・離席加算なし → newStateとカーソル設定 → Title/Game。NEW RUNはownedとephemeralが確認後に実行できる。ownedは保存を削除し、ephemeralはメモリ内だけでnewStateに切り替える。
+4. ownedとephemeralの各操作・非表示・復帰、およびownedの保存で未計上区間を精算する。画面が非表示でもownedまたはephemeralを維持する。
 5. Game → Victory → Game / Titleはstateを保持し、離席計算を再実行しない。
-6. pagehide・破棄 → 精算・可能な保存 → 処理停止・購読解除 → released。
-7. bfcache復帰はacquiringから再開する。blockedは先行画面終了後の再読み込みでacquiringへ戻る。
+6. pagehide・破棄 → 精算・ownedのみ可能な保存 → 処理停止・購読解除 → released。bfcache復帰に備えて終了前のセッション種別を保持する。
+7. ownedのbfcache復帰はacquiringから再開する。ephemeralのbfcache復帰は同じメモリ内runへ戻り、未精算分を100%精算する。blockedは先行画面終了後の再読み込みでacquiringへ戻る。
+8. ephemeralは画面存続中にownedへ昇格しない。再読み込み・終了では一時進行を破棄して再判定し、共有保存へ移行・合算しない。
 
 ## 主な不変条件
 
-- 保存先ごとにownedは最大1画面。blockedとunavailableは共有保存を読み書き・削除しない。
+- 保存先ごとにownedは最大1画面。blockedとephemeralは共有保存を読み書き・削除しない。
 - 同じ時間の通常生産と離席収入を重複加算しない。
 - 生産率変更の前までを旧生産率で精算し、新しい率を過去に適用しない。
 - 非表示中も正常な通常生産は100%。離席下限・上限・50%は閉じて再開したときだけ使う。
