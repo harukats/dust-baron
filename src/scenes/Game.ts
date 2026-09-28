@@ -2,6 +2,7 @@
 // crew and machines that dig for you, ride out dust storms (production ×2) and
 // grab chrome caches. Buying the Dust Crown wins.
 import Phaser from 'phaser';
+import { applySoundSettings, ensureMusic, toggleSound } from '../audio.ts';
 import * as C from '../config.ts';
 import {
   buyCrown,
@@ -88,6 +89,8 @@ export class Game extends Phaser.Scene {
     this.sfx = new Sfx(this.sound);
 
     if (!canPlay()) return;
+    applySoundSettings(this);
+    ensureMusic(this);
     if (data?.fresh) resetRun();
     const offline = initializeRun(Date.now(), run.now());
     settleRun();
@@ -176,8 +179,8 @@ export class Game extends Phaser.Scene {
   private buildStats(): void {
     const x = 24,
       y = 20,
-      w = 440,
-      h = 122;
+      w = 480,
+      h = 128;
     drawPlate(this.add.graphics(), x, y, w, h, COLOR.rustDark, COLOR.chromeDim, 0.85);
     label(this, x + 18, y + 14, C.CURRENCY, 18, COLOR.sub);
     this.scrapText = label(this, x + 18, y + 34, '0', 46, COLOR.hazard);
@@ -396,7 +399,7 @@ export class Game extends Phaser.Scene {
   }
 
   private toggleMute(): void {
-    this.sound.mute = !this.sound.mute;
+    toggleSound(this);
   }
 
   private spawnCache(): void {
@@ -506,7 +509,7 @@ export class Game extends Phaser.Scene {
         `DIG +${formatNum(this.digPower)}${this.frenzyLeft > 0 ? `  FRENZY ${Math.ceil(this.frenzyLeft)}s` : ''}`,
       )
       .setColor(css(this.frenzyLeft > 0 ? COLOR.chrome : COLOR.sand));
-    this.muteText.setText(this.sound.mute ? 'SOUND:OFF' : 'SOUND:ON');
+    this.muteText.setText(run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
     const q = C.QTY_MODES[this.qtyMode];
     this.qtyText.setText(q < 0 ? 'BUY MAX' : `BUY x${q}`);
     // The tutorial hint sits where banners appear; give way while one is showing.

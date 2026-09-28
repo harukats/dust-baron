@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { COLOR, HEIGHT, MUSIC, MUSIC_VOLUME, TEX, WIDTH } from '../config.ts';
+import { applySoundSettings, ensureMusic } from '../audio.ts';
+import { COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { formatNum, hasProgress } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, loadSave, resetRun, run, settleRun, writeSave } from '../storage.ts';
@@ -16,6 +17,8 @@ export class Title extends Phaser.Scene {
 
   create(): void {
     if (!canPlay()) return;
+    applySoundSettings(this);
+    ensureMusic(this);
     settleRun();
     this.sfx = new Sfx(this.sound);
     this.wipeArmed = false;
@@ -111,8 +114,6 @@ export class Title extends Phaser.Scene {
     settleRun();
     if (fresh) resetRun();
     else if (run.state) writeSave(run.state);
-    // The first click unlocks audio; start the soundtrack once and let it run across scenes.
-    if (!this.sound.get(MUSIC)) this.sound.add(MUSIC, { loop: true, volume: MUSIC_VOLUME }).play();
     this.sfx.play('start');
     this.scene.start('Game');
   }

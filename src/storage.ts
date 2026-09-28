@@ -1,10 +1,15 @@
-import { SAVE_KEY } from './config.ts';
+import { DEFAULT_SOUND_ENABLED, SAVE_KEY, SETTINGS_KEY } from './config.ts';
 import { deserialize, earn, newState, offlineGain, type State, serialize, settleProduction } from './economy.ts';
 import type { SessionMode } from './session.ts';
+
+export interface SoundSettings {
+  soundEnabled: boolean;
+}
 
 /** ライブ進行はシーンから独立する。副作用は呼び出し時にだけ実行する。 */
 export const run: {
   state: State | null;
+  settings: SoundSettings;
   mode: SessionMode;
   accountedAtMs: number;
   stormEndsAtMs: number;
@@ -13,6 +18,7 @@ export const run: {
   now: () => number;
 } = {
   state: null,
+  settings: { soundEnabled: DEFAULT_SOUND_ENABLED },
   mode: 'acquiring',
   accountedAtMs: 0,
   stormEndsAtMs: 0,
@@ -23,6 +29,34 @@ export const run: {
 
 export function canPlay(): boolean {
   return run.mode === 'owned' || run.mode === 'ephemeral';
+}
+
+export function initializeSoundSettings(): void {
+  // 一時プレイの同一ページ内再起動ではライブ値を保持する。
+  if (run.mode !== 'owned') return;
+  run.settings.soundEnabled = DEFAULT_SOUND_ENABLED;
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null');
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'soundEnabled' in value) {
+      if (typeof value.soundEnabled === 'boolean') run.settings.soundEnabled = value.soundEnabled;
+    }
+  } catch {
+    // 読み取り不能・不正設定でも既定値でプレイを続ける。
+  }
+}
+
+export function setSoundEnabled(enabled: boolean): void {
+  if (canPlay()) run.settings.soundEnabled = enabled;
+}
+
+export function writeSoundSettings(): boolean {
+  if (run.mode !== 'owned') return false;
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(run.settings));
+    return true;
+  } catch {
+    return false;
+  }
 }
 export function loadSave(): State | null {
   if (run.mode !== 'owned') return null;

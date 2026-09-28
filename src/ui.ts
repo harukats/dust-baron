@@ -1,5 +1,6 @@
 // Shared drawing helpers: riveted rust-metal plates, styled text, image fitting.
 import Phaser from 'phaser';
+import { toggleSound } from './audio.ts';
 import { COLOR, HEIGHT, SESSION_UI } from './config.ts';
 import { run } from './storage.ts';
 
@@ -104,10 +105,19 @@ export function plateButton(
 export function addSoundControl(scene: Phaser.Scene): void {
   let text: Phaser.GameObjects.Text;
   const toggle = (): void => {
-    scene.sound.mute = !scene.sound.mute;
-    text.setText(scene.sound.mute ? 'SOUND:OFF' : 'SOUND:ON');
+    toggleSound(scene);
+    text.setText(run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
   };
-  const button = plateButton(scene, 1120, 16, 140, 34, scene.sound.mute ? 'SOUND:OFF' : 'SOUND:ON', 16, toggle);
+  const button = plateButton(
+    scene,
+    1120,
+    16,
+    140,
+    34,
+    run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF',
+    16,
+    toggle,
+  );
   text = button.text;
   scene.input.keyboard?.on('keydown-M', toggle);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.input.keyboard?.off('keydown-M', toggle));

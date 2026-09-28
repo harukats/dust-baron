@@ -76,6 +76,8 @@ export const FRENZY_MULT = 7;
 
 // ── SAVE ────────────────────────────────────────────────────────────────────
 export const SAVE_KEY = 'dust-baron-save-v1';
+export const SETTINGS_KEY = 'dust-baron-settings-v1';
+export const DEFAULT_SOUND_ENABLED = true;
 export const PLAY_LOCK = `${SAVE_KEY}:play`;
 export const CURRENCY = 'Credits';
 export const RATE_LABEL = 'Credits/s';

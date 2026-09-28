@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { applySoundSettings, ensureMusic } from '../audio.ts';
 import { COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { formatNum, formatTime } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
@@ -19,6 +20,8 @@ export class Victory extends Phaser.Scene {
 
   create(data: VictoryData): void {
     if (!canPlay()) return;
+    applySoundSettings(this);
+    ensureMusic(this);
     settleRun();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       settleRun();

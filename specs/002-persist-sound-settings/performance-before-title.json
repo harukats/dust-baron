@@ -1,0 +1,55 @@
+{
+  "commit": "63f4933836264cbf59a80775dea7f39e1c90b5d6",
+  "os": "6.18.33.2-microsoft-standard-WSL2",
+  "cpu": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S",
+  "browser": "153.0.8010.12",
+  "viewport": "1280x720",
+  "dpr": 1,
+  "reports": [
+    {
+      "sceneName": "Title",
+      "trial": 1,
+      "frameP95": 20.699999999254942,
+      "fps": 55.01921173565247,
+      "responseP95": 1.5999999977648258,
+      "responseMax": 1.5999999977648258,
+      "samples": 10,
+      "settingsReads": 0,
+      "settingsWrites": 0,
+      "musicCount": 0,
+      "mute": false,
+      "activeScenes": ["Title"],
+      "muteLabel": ["SOUND:OFF"]
+    },
+    {
+      "sceneName": "Title",
+      "trial": 2,
+      "frameP95": 20.199999999254942,
+      "fps": 55.948414794911365,
+      "responseP95": 1.7000000029802322,
+      "responseMax": 1.7000000029802322,
+      "samples": 10,
+      "settingsReads": 0,
+      "settingsWrites": 0,
+      "musicCount": 0,
+      "mute": false,
+      "activeScenes": ["Title"],
+      "muteLabel": ["SOUND:OFF"]
+    },
+    {
+      "sceneName": "Title",
+      "trial": 3,
+      "frameP95": 20.299999997019768,
+      "fps": 55.52454194752497,
+      "responseP95": 1.4000000022351742,
+      "responseMax": 1.4000000022351742,
+      "samples": 10,
+      "settingsReads": 0,
+      "settingsWrites": 0,
+      "musicCount": 0,
+      "mute": false,
+      "activeScenes": ["Title"],
+      "muteLabel": ["SOUND:OFF"]
+    }
+  ]
+}
