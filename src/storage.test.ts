@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
-import { SAVE_KEY } from './config.ts';
+import { SAVE_KEY, SETTINGS_KEY } from './config.ts';
 import { newState, type State, serialize } from './economy.ts';
-import { clearSave, initializeRun, loadSave, resetRun, run, writeSave } from './storage.ts';
+import {
+  clearSave,
+  initializeRun,
+  initializeSoundSettings,
+  loadSave,
+  resetRun,
+  run,
+  setSoundEnabled,
+  writeSave,
+  writeSoundSettings,
+} from './storage.ts';
 
 function liveState(): State {
   assert.ok(run.state);
@@ -34,6 +44,7 @@ beforeEach(() => {
   run.now = () => 1000;
   run.mode = 'owned';
   run.state = null;
+  run.settings.soundEnabled = true;
   run.accountedAtMs = 0;
   run.stormEndsAtMs = 0;
 });
@@ -124,3 +135,102 @@ test('稼働中の単調時間と保存日時を分離し、実日時の逆行�
   assert.equal(s.lastSave, 90_000);
   assert.equal(run.accountedAtMs, 1_060_000);
 });
+
+test('音声設定はbooleanのみ復元し不正・欠落はON', () => {
+  for (const raw of [null, '{', 'null', '[]', 'false', '0', '{}', '{"soundEnabled":"false"}', '{"soundEnabled":0}']) {
+    if (raw === null) data.delete(SETTINGS_KEY);
+    else data.set(SETTINGS_KEY, raw);
+    run.settings.soundEnabled = false;
+    initializeSoundSettings();
+    assert.equal(run.settings.soundEnabled, true, String(raw));
+  }
+  for (const enabled of [true, false]) {
+    data.set(SETTINGS_KEY, JSON.stringify({ soundEnabled: enabled, extra: 'ignored' }));
+    initializeSoundSettings();
+    assert.equal(run.settings.soundEnabled, enabled);
+  }
+});
+
+test('タイトル相当の設定保存は進行と離席基準に触れず即時復元できる', () => {
+  const s = newState();
+  s.owned[0] = 4;
+  s.lastSave = 1_000_000;
+  data.set(SAVE_KEY, serialize(s));
+  const raw = data.get(SAVE_KEY);
+  run.accountedAtMs = 123;
+  run.offline = 45;
+  setSoundEnabled(false);
+  assert.equal(writeSoundSettings(), true);
+  assert.equal(data.get(SAVE_KEY), raw);
+  assert.equal(run.state, null);
+  assert.equal(run.accountedAtMs, 123);
+  assert.equal(run.offline, 45);
+  run.settings.soundEnabled = true;
+  initializeSoundSettings();
+  assert.equal(run.settings.soundEnabled, false);
+  assert.equal(initializeRun(1_060_000), 60);
+  assert.equal(initializeRun(1_060_001), 0);
+});
+
+test('設定変更とNEW RUNで進行・設定それぞれの保存値を保護', () => {
+  const s = newState();
+  s.scrap = 123;
+  run.state = s;
+  run.accountedAtMs = 1000;
+  writeSave(s, 2000);
+  const before = serialize(s);
+  setSoundEnabled(false);
+  writeSoundSettings();
+  assert.equal(serialize(s), before);
+  assert.equal(s.lastSave, 2000);
+  assert.equal(data.get(SETTINGS_KEY), JSON.stringify({ soundEnabled: false }));
+  const settings = data.get(SETTINGS_KEY);
+  resetRun(1000);
+  assert.equal(run.settings.soundEnabled, false);
+  assert.equal(data.get(SETTINGS_KEY), settings);
+  assert.equal(liveState().scrap, 0);
+});
+
+test('音声設定も非ownedで共有保存にアクセスせず一時プレイはライブ値維持', () => {
+  for (const mode of ['blocked', 'ephemeral', 'released', 'acquiring'] as const) {
+    calls.length = 0;
+    run.mode = mode;
+    run.settings.soundEnabled = false;
+    initializeSoundSettings();
+    setSoundEnabled(true);
+    assert.equal(run.settings.soundEnabled, mode === 'ephemeral');
+    assert.equal(writeSoundSettings(), false);
+    assert.deepEqual(calls, []);
+  }
+  run.mode = 'ephemeral';
+  setSoundEnabled(false);
+  initializeSoundSettings();
+  resetRun();
+  assert.equal(run.settings.soundEnabled, false);
+  assert.deepEqual(calls, []);
+});
+
+for (const failure of ['property', 'read', 'write']) {
+  test(`音声設定の${failure}例外でも操作を維持`, () => {
+    const fail = () => {
+      throw new Error('denied');
+    };
+    if (failure === 'property') {
+      Object.defineProperty(globalThis, 'localStorage', { configurable: true, get: fail });
+    } else {
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: {
+          getItem: failure === 'read' ? fail : () => null,
+          setItem: fail,
+        },
+      });
+    }
+    initializeSoundSettings();
+    assert.equal(run.settings.soundEnabled, true);
+    setSoundEnabled(false);
+    assert.equal(writeSoundSettings(), false);
+    assert.equal(run.settings.soundEnabled, false);
+    assert.equal(run.state, null);
+  });
+}

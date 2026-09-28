@@ -6,7 +6,7 @@ import { Preloader } from './scenes/Preloader.ts';
 import { Title } from './scenes/Title.ts';
 import { Victory } from './scenes/Victory.ts';
 import { acquireSession, type PlaySession } from './session.ts';
-import { initializeRun, run, settleRun, writeSave } from './storage.ts';
+import { initializeRun, initializeSoundSettings, run, settleRun, writeSave } from './storage.ts';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -57,6 +57,7 @@ async function boot(): Promise<void> {
   wasTemporary = acquired.mode === 'ephemeral';
   showNotice(acquired.mode);
   if (acquired.mode === 'blocked') return;
+  initializeSoundSettings();
   if (acquired.mode === 'owned') run.state = null;
   else initializeRun(Date.now(), run.now());
   settleRun();

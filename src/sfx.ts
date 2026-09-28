@@ -2,6 +2,7 @@
 // these are built from oscillators/noise and routed into Phaser's own sound graph
 // (its `destination`), so the game-wide mute and volume apply to them too.
 import type Phaser from 'phaser';
+import { run } from './storage.ts';
 
 interface Voice {
   type?: OscillatorType | 'noise';
@@ -58,6 +59,7 @@ export class Sfx {
   }
 
   play(name: keyof typeof SFX): void {
+    if (!run.settings.soundEnabled || this.manager.mute) return;
     const gr = this.graph();
     if (!gr) return;
     for (const v of SFX[name] ?? []) this.voice(gr.ctx, gr.out, v);
