@@ -156,3 +156,64 @@ test('pacing: a greedy bot reaches the crown in 20 min – 3 h', () => {
   console.log(`  pacing bot crowned after ${(t / 60).toFixed(1)} min`);
   assert.ok(b.won && t <= 3 * 3600 && t >= 20 * 60);
 });
+
+test('合計丸め305、MAX10個、不足304では変更しない', () => {
+  assert.equal(genCost(0, 0, 10), 305);
+  assert.equal(genCost(0, 0, 11), 366);
+  assert.equal(genCost(0, 10), 61);
+  assert.equal(maxAffordable(0, 0, 305), 10);
+  const s = newState();
+  s.scrap = 304;
+  assert.equal(buyGen(s, 0, 10), 0);
+  assert.equal(s.scrap, 304);
+  s.scrap = 305;
+  assert.equal(buyGen(s, 0, -1), 10);
+  assert.equal(s.scrap, 0);
+});
+test('全種類・全倍率閾値・100回の不足購入', () => {
+  for (let i = 0; i < GENS.length; i++) {
+    const s = newState();
+    s.scrap = GENS[i].baseCost - 1;
+    for (let n = 0; n < 100; n++) assert.equal(buyGen(s, i, 1), 0);
+    s.scrap++;
+    assert.equal(buyGen(s, i, 1), 1);
+    assert.equal(perSecond(s), GENS[i].rate);
+  }
+  MILESTONES.forEach((threshold, i) => {
+    assert.equal(milestoneMult(threshold - 1), 2 ** i);
+    assert.equal(milestoneMult(threshold), 2 ** (i + 1));
+    assert.equal(milestoneMult(threshold + 1), 2 ** (i + 1));
+  });
+});
+test('無効な購入と収入は正常な状態を壊さない', () => {
+  const s = newState();
+  s.scrap = 1e6;
+  const before = serialize(s);
+  for (const qty of [NaN, Infinity, 0.5, 1e308]) assert.equal(buyGen(s, 0, qty), 0);
+  assert.equal(buyGen(s, 99, 1), 0);
+  earn(s, Infinity);
+  earn(s, -1);
+  assert.equal(serialize(s), before);
+});
+test('不正なroot・各整数・各フィールドを独立して復旧する', () => {
+  for (const root of ['[]', 'null', '{}', '42', '{"unknown":1}']) assert.equal(deserialize(root), null);
+  const valid = { ...newState(), scrap: 123.5, total: 200, owned: [1, 2, 3, 4, 5, 6], pick: 3, won: true };
+  for (const key of ['scrap', 'total', 'clicks', 'pick', 'playTime', 'lastSave']) {
+    for (const invalid of [-1, 'bad', null]) {
+      const s = deserialize(JSON.stringify({ ...valid, [key]: invalid }));
+      assert.ok(s);
+      assert.deepEqual(s.owned, valid.owned);
+      assert.equal(s.won, true);
+      if (key !== 'pick') assert.equal(s.pick, 3);
+      assert.equal(s[key as keyof typeof s], key === 'total' ? valid.scrap : 0);
+    }
+  }
+  assert.equal(deserialize('{"clicks":1.5,"pick":3.5,"owned":[1.5,2]}')?.pick, 0);
+  assert.deepEqual(deserialize('{"owned":[1.5,2]}')?.owned, [0, 2, 0, 0, 0, 0]);
+  assert.equal(deserialize('{"pick":1024,"won":true}')?.pick, 0);
+  const extreme = deserialize('{"owned":[1e308,2],"pick":3}');
+  assert.ok(extreme);
+  assert.equal(extreme.owned[0], 0);
+  assert.equal(extreme.owned[1], 2);
+  assert.ok(Number.isFinite(perSecond(extreme)));
+});

@@ -30,17 +30,22 @@ export function newState(): State {
 
 /** Cost of buying `qty` more of generator `i` when `owned` are already owned. */
 export function genCost(i: number, owned: number, qty = 1): number {
+  if (!GENS[i] || !Number.isSafeInteger(owned) || owned < 0 || !Number.isSafeInteger(qty) || qty < 0) return Infinity;
+  if (qty === 0) return 0;
   const g = COST_GROWTH;
+  if (qty === 1) return Math.ceil(GENS[i].baseCost * g ** owned);
   return Math.ceil((GENS[i].baseCost * g ** owned * (g ** qty - 1)) / (g - 1));
 }
 
 /** How many of generator `i` `scrap` can buy right now (0 if none). */
 export function maxAffordable(i: number, owned: number, scrap: number): number {
+  if (!GENS[i] || !Number.isSafeInteger(owned) || owned < 0 || !Number.isFinite(scrap) || scrap < 0) return 0;
   const g = COST_GROWTH;
   const first = GENS[i].baseCost * g ** owned;
   let k = Math.floor(Math.log((scrap * (g - 1)) / first + 1) / Math.log(g));
   if (!Number.isFinite(k) || k < 0) k = 0;
   while (k > 0 && genCost(i, owned, k) > scrap) k--;
+  while (genCost(i, owned, k + 1) <= scrap) k++;
   return k;
 }
 
@@ -76,17 +81,31 @@ export function pickCost(level: number): number {
 }
 
 export function earn(s: State, amount: number): void {
+  if (
+    !Number.isFinite(amount) ||
+    amount < 0 ||
+    !Number.isFinite(s.scrap + amount) ||
+    !Number.isFinite(s.total + amount)
+  )
+    return;
   s.scrap += amount;
   s.total += amount;
 }
 
 /** Buy `qty` of generator i (qty -1 = as many as affordable). Returns the number bought. */
 export function buyGen(s: State, i: number, qty: number): number {
+  if (!GENS[i] || !Number.isSafeInteger(qty) || (qty !== -1 && qty <= 0)) return 0;
   const owned = s.owned[i] ?? 0;
   const n = qty < 0 ? maxAffordable(i, owned, s.scrap) : qty;
   if (n <= 0) return 0;
   const cost = genCost(i, owned, n);
-  if (cost > s.scrap) return 0;
+  if (
+    !Number.isFinite(cost) ||
+    cost > s.scrap ||
+    !Number.isSafeInteger(owned + n) ||
+    !Number.isFinite(genRate(i, owned + n))
+  )
+    return 0;
   s.scrap -= cost;
   s.owned[i] = owned + n;
   return n;
@@ -94,7 +113,7 @@ export function buyGen(s: State, i: number, qty: number): number {
 
 export function buyPick(s: State): boolean {
   const c = pickCost(s.pick);
-  if (c > s.scrap) return false;
+  if (!Number.isFinite(c) || c > s.scrap || !Number.isFinite(2 ** (s.pick + 1))) return false;
   s.scrap -= c;
   s.pick++;
   return true;
@@ -118,6 +137,30 @@ export function offlineGain(s: State, secondsAway: number): number {
   return perSecond(s) * Math.min(secondsAway, OFFLINE_CAP_S) * OFFLINE_RATE;
 }
 
+/** 収入と次のカーソルを返す。入力Stateと外部時刻を変更しない。 */
+export function settleProduction(
+  s: State,
+  accountedAtMs: number,
+  now: number,
+  stormEndsAtMs: number,
+): {
+  gain: number;
+  elapsedS: number;
+  accountedAtMs: number;
+} {
+  if (!Number.isFinite(now) || now <= accountedAtMs) return { gain: 0, elapsedS: 0, accountedAtMs };
+  const elapsedS = (now - accountedAtMs) / 1000;
+  const stormS = Math.max(0, Math.min(now, stormEndsAtMs) - accountedAtMs) / 1000;
+  const amount = perSecond(s) * (elapsedS + stormS * (STORM_MULT - 1));
+  const gain =
+    Number.isFinite(amount) && Number.isFinite(s.scrap + amount) && Number.isFinite(s.total + amount) ? amount : 0;
+  return { gain, elapsedS, accountedAtMs: now };
+}
+
+export function hasProgress(s: State): boolean {
+  return s.scrap > 0 || s.total > 0 || s.pick > 0 || s.won || s.owned.some((n) => n > 0);
+}
+
 export function serialize(s: State): string {
   return JSON.stringify(s);
 }
@@ -126,17 +169,26 @@ export function serialize(s: State): string {
 export function deserialize(json: string | null): State | null {
   if (!json) return null;
   try {
-    const o = JSON.parse(json) as Partial<State>;
+    const parsed: unknown = JSON.parse(json);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const o = parsed as Partial<State>;
+    if (!Object.keys(newState()).some((key) => Object.hasOwn(o, key))) return null;
     const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
+    const integer = (v: unknown): number => (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : 0);
     const s = newState();
     s.scrap = num(o.scrap);
     s.total = Math.max(num(o.total), s.scrap);
-    s.clicks = Math.floor(num(o.clicks));
-    s.pick = Math.floor(num(o.pick));
+    s.clicks = integer(o.clicks);
+    s.pick = integer(o.pick);
     s.won = o.won === true;
     s.playTime = num(o.playTime);
     s.lastSave = num(o.lastSave);
-    if (Array.isArray(o.owned)) for (let i = 0; i < GENS.length; i++) s.owned[i] = Math.floor(num(o.owned[i]));
+    if (Array.isArray(o.owned))
+      for (let i = 0; i < GENS.length; i++) {
+        const owned = integer(o.owned[i]);
+        s.owned[i] = Number.isFinite(genRate(i, owned)) ? owned : 0;
+      }
+    if (!Number.isFinite(clickPower(s, perSecond(s)))) s.pick = 0;
     return s;
   } catch {
     return null;

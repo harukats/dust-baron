@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { formatNum, formatTime } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
-import { addBackdrop, drawPlate, fitImage, label } from '../ui.ts';
+import { canPlay, run, settleRun, writeSave } from '../storage.ts';
+import { addBackdrop, addSoundControl, addTemporaryNotice, drawPlate, fitImage, label } from '../ui.ts';
 
 export interface VictoryData {
   time: number;
@@ -17,7 +18,15 @@ export class Victory extends Phaser.Scene {
   }
 
   create(data: VictoryData): void {
+    if (!canPlay()) return;
+    settleRun();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      settleRun();
+      if (run.state) writeSave(run.state);
+    });
     addBackdrop(this, TEX.background);
+    addSoundControl(this);
+    addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.45).setOrigin(0);
     fitImage(this.add.image(WIDTH / 2, HEIGHT * 0.2, TEX.logo), 360);
     label(this, WIDTH / 2, HEIGHT * 0.42, 'THE WASTES ARE YOURS', 44, COLOR.hazard, 0.5, 0.5);
@@ -30,7 +39,7 @@ export class Victory extends Phaser.Scene {
     drawPlate(this.add.graphics(), px, py, pw, ph);
     const rows: [string, string][] = [
       ['TIME TO THE CROWN', formatTime(data.time ?? 0)],
-      ['SCRAP DUG (LIFETIME)', formatNum(data.total ?? 0)],
+      ['CREDITS EARNED (LIFETIME)', formatNum(data.total ?? 0)],
       ['DIGS BY HAND', formatNum(data.clicks ?? 0)],
     ];
     rows.forEach(([k, v], i) => {
@@ -59,12 +68,26 @@ export class Victory extends Phaser.Scene {
     });
     new Sfx(this.sound).play('fanfare');
 
-    const hint = label(this, WIDTH / 2, HEIGHT - 50, 'TAP TO KEEP DIGGING', 24, COLOR.text, 0.5, 0.5);
+    const hint = label(
+      this,
+      WIDTH / 2,
+      HEIGHT - (run.mode === 'ephemeral' ? 86 : 50),
+      'TAP TO KEEP DIGGING',
+      24,
+      COLOR.text,
+      0.5,
+      0.5,
+    );
     this.tweens.add({ targets: hint, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
 
     // A short grace period so the click that bought the crown doesn't skip this screen.
     this.time.delayedCall(800, () => {
-      this.input.once(Phaser.Input.Events.POINTER_DOWN, () => this.scene.start('Game'));
+      this.input.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        (_pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+          if (over.length === 0 && canPlay()) this.scene.start('Game');
+        },
+      );
       this.input.keyboard?.once('keydown-SPACE', () => this.scene.start('Game'));
     });
   }

@@ -67,6 +67,11 @@ export class ShopRow {
     this.title.setText(v.title).setColor(v.locked ? '#7d6a58' : v.done || this.crown ? '#f2c230' : '#f3e1c0');
     this.sub.setText(v.progress === undefined ? v.sub : '').setVisible(v.progress === undefined);
     this.cost.setText(v.cost).setColor(v.affordable ? '#f2c230' : '#7d6a58');
+    // 費用と長い名称・説明を重ねず、縮小画面でも行内へ収める。
+    const titleWidth = Math.max(1, this.cost.x - this.cost.displayWidth - 12 - this.title.x);
+    const subWidth = this.box.x + this.box.w - 14 - this.sub.x;
+    this.title.setScale(Math.min(1, titleWidth / Math.max(1, this.title.width)));
+    this.sub.setScale(Math.min(1, subWidth / Math.max(1, this.sub.width)));
     if (v.locked) this.icon.setTint(0x000000).setTintMode(Phaser.TintModes.FILL).setAlpha(0.7);
     else this.icon.clearTint().setTintMode(Phaser.TintModes.MULTIPLY).setAlpha(1);
     this.redraw();

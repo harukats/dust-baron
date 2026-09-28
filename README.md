@@ -10,8 +10,8 @@
 
 ## 遊び方
 
-鉱床をクリックしてスクラップを掘り、Supply Depot でクルーや機械を雇って採掘を自動化します。
-最終目標は **Dust Crown**(2億5000万スクラップ)の購入です。クリア後もそのまま続けて遊べます。
+鉱床をクリックしてスクラップを掘り、Supply Depot でクルーや機械を雇って採掘を自動化します。スクラップの価値は単一通貨 `Credits` で表示します。
+最終目標は **Dust Crown**(2億5000万Credits)の購入です。クリア後もそのまま続けて遊べます。
 
 | 操作 | 内容 |
 |---|---|
@@ -24,7 +24,11 @@
 - **クルーと機械(6段階)**:Scavenger → Dune Miner → Rust Drill → Sandcrawler → Salvage Yard → Storm Refinery。25・50・100…台そろえるごとに、その種類の生産量が2倍になります。
 - **砂嵐**:70〜110秒ごとに発生し、15秒間生産量が2倍になります。
 - **クロームキャッシュ**:ときどき出現する箱です。クリックすると大量のスクラップか、20秒間の掘削7倍のどちらかが手に入ります。
-- **セーブ**:5秒ごとと購入時にブラウザの `localStorage` へ自動保存します。離れていた時間も、半分の速度で最大2時間分を採掘します。
+- **セーブ**:5秒ごとと購入時にブラウザの `localStorage` へ自動保存します。開いたままの非表示・最小化中は通常速度で採掘します。閉じて再開した離席が30秒以上なら、半分の速度で最大2時間分を一度だけ加算します。
+
+同じ保存先では最初の1画面だけがプレイできます。後の画面は `GAME ALREADY OPEN` を表示し、最初の画面を閉じてから再読み込みすると再開できます。
+
+同時プレイ制御が利用できない環境では `TEMPORARY PLAY — NOT SAVED` と表示し、保存なしの一時プレイを開始します。既存保存には触れず、再読み込み・終了で一時進行を失います。保存の書き込みだけが失敗した場合は、現在の進行を保持してプレイを継続します。
 
 ## 開発
 
@@ -48,8 +52,12 @@ pnpm dev        # http://localhost:8080
 | `pnpm build` | 型チェック → テスト → `dist/` へビルド |
 | `pnpm preview` | ビルド結果を確認用に配信 |
 | `pnpm test` | 経済ロジックのテスト(`node:test`) |
-| `pnpm typecheck` | TypeScript の型チェック |
+| `pnpm typecheck` | ソース・E2E・設定の厳格な型チェック |
+| `pnpm test:e2e` | 実ブラウザでの採掘・購入・保存・単一セッション・再入場検証 |
+| `pnpm test:performance` | headed Chromiumによる変更前後の性能計測（Vite起動が必要） |
 | `pnpm lint` / `pnpm lint:fix` | [Biome](https://biomejs.dev/) によるフォーマット・Lint のチェック / 自動修正 |
+
+E2Eの初回実行前に `pnpm exec playwright install chromium` でブラウザを用意します。Vite起動後、背景の実画面検証は `pnpm exec node tests/e2e/runtime-check.ts`、別ウィンドウの排他検証は `pnpm exec node tests/e2e/window-check.ts`、再入場時のメモリ記録は `pnpm exec node tests/e2e/memory-check.ts` で実行します。検証記録は [validation.md](specs/001-mine-clicker/validation.md)、性能結果は [performance.md](specs/001-mine-clicker/performance.md) を参照してください。
 
 `dist/` は相対パスで出力されるので、そのまま任意の静的ホスティングに置けます。
 

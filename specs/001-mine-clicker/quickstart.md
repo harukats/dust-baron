@@ -1,6 +1,6 @@
 # 検証ガイド: Mine Clicker
 
-このガイドは実装後の合格確認用である。現在の計画成果物だけで実装や検証が完了したことを意味しない。
+このガイドは合格確認用である。実装・自動テスト・実画面・性能・参加者の検証結果は [validation.md](validation.md) と [performance.md](performance.md) に記録し、未実施を合格と扱わない。
 
 ## 前提と準備
 
@@ -19,7 +19,7 @@ pnpm dev
 ```
 
 ゲームを `http://localhost:8080` で開く。正式なPagesサブパスでも相対アセットが読めることを配布前に確認する。
-実装後に追加するE2Eのコマンドは以下とする（現時点のpackage.jsonには未追加）。
+実装済みE2Eのコマンドは以下とする。
 
 ```sh
 pnpm exec playwright install chromium
@@ -102,3 +102,9 @@ Desktopは対応実機で基本操作、保存、排他機能の検出を確認�
 
 仕様のSC-001〜013について、環境、手順、期待値、実測値、合否、未実施理由を日本語で記録する。
 Node・ブラウザテストの成功、実機測定、参加者検証を区別する。失敗を仕様変更で隠さず、解消または憲章に従った例外のレビューを行う。
+
+## 実装済みの検証コマンド
+
+Viteを起動してから `pnpm test:performance` を実行すると、headed Chromiumの計測値をtest-results/performance.jsonへ保存する。背景の実タブ・最小化検証は `pnpm exec node tests/e2e/runtime-check.ts` で行う。実機でvisibilityが切り替わらない場合は合格にせず、環境を変えて再検証する。
+
+別タブ・別ウィンドウの排他検証は `pnpm exec node tests/e2e/window-check.ts`、全UI状態の画面記録は `pnpm exec node tests/e2e/ui-check.ts`、GC後の再入場メモリ記録は `pnpm exec node tests/e2e/memory-check.ts` で実行する。FPS測定中は他のブラウザ検証を実行しない。短時間のGC後ヒープ記録は、長時間動作やGPUメモリの保証を代替しない。
