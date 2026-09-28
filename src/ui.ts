@@ -1,6 +1,7 @@
 // Shared drawing helpers: riveted rust-metal plates, styled text, image fitting.
 import Phaser from 'phaser';
-import { COLOR } from './config.ts';
+import { COLOR, HEIGHT, SESSION_UI } from './config.ts';
+import { run } from './storage.ts';
 
 export const FONT = '"Courier New", Courier, monospace';
 
@@ -97,4 +98,25 @@ export function plateButton(
   const zone = scene.add.zone(x, y, w, h).setOrigin(0).setInteractive({ useHandCursor: true });
   zone.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, onClick);
   return { g, text: t, zone, redraw };
+}
+
+/** 開始・達成画面でも同じ音声操作を使う。 */
+export function addSoundControl(scene: Phaser.Scene): void {
+  let text: Phaser.GameObjects.Text;
+  const toggle = (): void => {
+    scene.sound.mute = !scene.sound.mute;
+    text.setText(scene.sound.mute ? 'SOUND:OFF' : 'SOUND:ON');
+  };
+  const button = plateButton(scene, 1120, 16, 140, 34, scene.sound.mute ? 'SOUND:OFF' : 'SOUND:ON', 16, toggle);
+  text = button.text;
+  scene.input.keyboard?.on('keydown-M', toggle);
+  scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.input.keyboard?.off('keydown-M', toggle));
+}
+
+/** 一時プレイの案内を既存のGraphics/Textで全シーンに常時表示する。 */
+export function addTemporaryNotice(scene: Phaser.Scene): void {
+  if (run.mode !== 'ephemeral') return;
+  drawPlate(scene.add.graphics().setDepth(100), 0, HEIGHT - 52, 740, 52, COLOR.panel, COLOR.chromeDim);
+  label(scene, 370, HEIGHT - 40, SESSION_UI.temporaryTitle, 14, COLOR.hazard, 0.5, 0.5).setDepth(101);
+  label(scene, 370, HEIGHT - 18, SESSION_UI.temporaryBody, 12, COLOR.text, 0.5, 0.5).setDepth(101);
 }

@@ -14,17 +14,15 @@ import {
   genRate,
   isRevealed,
   maxAffordable,
-  newState,
   nextMilestone,
-  offlineGain,
   perSecond,
   pickCost,
   type State,
 } from '../economy.ts';
 import { ShopRow } from '../ShopRow.ts';
 import { Sfx } from '../sfx.ts';
-import { clearSave, loadSave, run, writeSave } from '../storage.ts';
-import { addBackdrop, css, drawPlate, fitImage, label, plateButton } from '../ui.ts';
+import { canPlay, initializeRun, resetRun, run, settleRun, writeSave } from '../storage.ts';
+import { addBackdrop, addTemporaryNotice, css, drawPlate, fitImage, label, plateButton } from '../ui.ts';
 
 const { COLOR, WIDTH, HEIGHT } = C;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
@@ -62,6 +60,7 @@ export class Game extends Phaser.Scene {
   private bannerSub!: Phaser.GameObjects.Text;
   private chromeCache: Phaser.GameObjects.Image | null = null;
   private cacheLife = 0;
+  private cacheExpiresAtMs = 0;
   private stormIn = 0;
   private stormLeft = 0;
   private cacheIn = 0;
@@ -78,6 +77,8 @@ export class Game extends Phaser.Scene {
     this.genRows = [];
     this.crewSig = '';
     this.chromeCache = null;
+    this.cacheLife = 0;
+    this.cacheExpiresAtMs = 0;
     this.frenzyLeft = 0;
     this.stormLeft = 0;
     this.tickAcc = 0;
@@ -86,20 +87,13 @@ export class Game extends Phaser.Scene {
     this.cacheIn = rand(C.CACHE_MIN_S * 0.5, C.CACHE_MAX_S * 0.5);
     this.sfx = new Sfx(this.sound);
 
-    let offline = 0;
-    if (data?.fresh) {
-      clearSave();
-      run.state = null;
-    }
-    if (!run.state) {
-      const saved = data?.fresh ? null : loadSave();
-      run.state = saved ?? newState();
-      if (saved && saved.lastSave > 0) {
-        offline = offlineGain(saved, (Date.now() - saved.lastSave) / 1000);
-        if (offline > 0) earn(saved, offline);
-      }
-    }
-    this.s = run.state;
+    if (!canPlay()) return;
+    if (data?.fresh) resetRun();
+    const offline = initializeRun(Date.now(), run.now());
+    settleRun();
+    run.stormEndsAtMs = 0;
+    run.frenzyEndsAtMs = 0;
+    this.s = run.state as State;
 
     addBackdrop(this, C.TEX.background);
     this.stormOverlay = this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.storm, 0).setOrigin(0);
@@ -109,27 +103,46 @@ export class Game extends Phaser.Scene {
     this.buildShop();
     this.buildEffects();
     this.buildBanner();
+    addTemporaryNotice(this);
 
     const kb = this.input.keyboard;
-    kb?.on('keydown-SPACE', (e: KeyboardEvent) => {
+    const onDig = (e: KeyboardEvent): void => {
       if (!e.repeat) this.dig(DEP.x + rand(-40, 40), DEP.y + rand(-30, 30));
+    };
+    const onQty = (): void => this.cycleQty();
+    const onMute = (): void => this.toggleMute();
+    kb?.on('keydown-SPACE', onDig);
+    kb?.on('keydown-Q', onQty);
+    kb?.on('keydown-M', onMute);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.save();
+      kb?.off('keydown-SPACE', onDig);
+      kb?.off('keydown-Q', onQty);
+      kb?.off('keydown-M', onMute);
     });
-    kb?.on('keydown-Q', () => this.cycleQty());
-    kb?.on('keydown-M', () => this.toggleMute());
-
-    this.time.addEvent({ delay: C.AUTOSAVE_MS, loop: true, callback: () => writeSave(this.s) });
-    // Save when the tab is hidden too, so offline earnings start from the right moment.
-    this.game.events.on(Phaser.Core.Events.HIDDEN, this.save, this);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () =>
-      this.game.events.off(Phaser.Core.Events.HIDDEN, this.save, this),
-    );
-
+    this.refreshHud(this.ps);
+    this.refreshShop();
+    this.refreshCrew();
     if (offline > 0)
-      this.showBanner('WHILE YOU WERE GONE', `your crew dug +${formatNum(offline)} scrap`, COLOR.hazard, 5000);
+      this.showBanner('WHILE YOU WERE GONE', `your crew dug +${formatNum(offline)} ${C.CURRENCY}`, COLOR.hazard, 5000);
   }
 
   private save(): void {
+    settleRun();
     writeSave(this.s);
+  }
+
+  private settle(): void {
+    settleRun();
+    const now = run.now();
+    const wasStorm = this.stormLeft > 0;
+    this.stormLeft = Math.max(0, (run.stormEndsAtMs - now) / 1000);
+    this.frenzyLeft = Math.max(0, (run.frenzyEndsAtMs - now) / 1000);
+    if (wasStorm && this.stormLeft === 0) this.endStorm();
+    if (this.chromeCache) {
+      this.cacheLife = Math.max(0, (this.cacheExpiresAtMs - now) / 1000);
+      if (this.cacheLife === 0) this.removeCache();
+    }
   }
 
   // ── building ──────────────────────────────────────────────────────────────
@@ -166,7 +179,7 @@ export class Game extends Phaser.Scene {
       w = 440,
       h = 122;
     drawPlate(this.add.graphics(), x, y, w, h, COLOR.rustDark, COLOR.chromeDim, 0.85);
-    label(this, x + 18, y + 14, 'SCRAP', 18, COLOR.sub);
+    label(this, x + 18, y + 14, C.CURRENCY, 18, COLOR.sub);
     this.scrapText = label(this, x + 18, y + 34, '0', 46, COLOR.hazard);
     this.psText = label(this, x + 18, y + 90, '', 18);
     this.digText = label(this, x + w - 18, y + 14, '', 18, COLOR.sand, 1, 0);
@@ -310,13 +323,15 @@ export class Game extends Phaser.Scene {
 
   // ── actions ───────────────────────────────────────────────────────────────
   private get ps(): number {
-    return perSecond(this.s, this.stormLeft > 0);
+    return perSecond(this.s, run.stormEndsAtMs > run.now());
   }
   private get digPower(): number {
-    return clickPower(this.s, this.ps) * (this.frenzyLeft > 0 ? C.FRENZY_MULT : 1);
+    return clickPower(this.s, perSecond(this.s)) * (run.frenzyEndsAtMs > run.now() ? C.FRENZY_MULT : 1);
   }
 
   private dig(x: number, y: number): void {
+    if (!canPlay()) return;
+    this.settle();
     const gain = this.digPower;
     earn(this.s, gain);
     this.s.clicks++;
@@ -357,12 +372,16 @@ export class Game extends Phaser.Scene {
   }
 
   private buy(tryBuy: () => boolean): void {
+    if (!canPlay()) return;
+    this.settle();
     const ok = tryBuy();
     this.sfx.play(ok ? 'buy' : 'nope');
     if (ok) writeSave(this.s);
   }
 
   private buyTheCrown(): void {
+    if (!canPlay()) return;
+    this.settle();
     if (!buyCrown(this.s)) {
       this.sfx.play('nope');
       return;
@@ -390,16 +409,20 @@ export class Game extends Phaser.Scene {
     this.tweens.add({ targets: c, y: y - 12, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
     this.chromeCache = c;
     this.cacheLife = C.CACHE_LIFE_S;
+    this.cacheExpiresAtMs = run.now() + C.CACHE_LIFE_S * 1000;
     this.sfx.play('chime');
   }
 
   private removeCache(): void {
+    if (this.chromeCache) this.tweens.killTweensOf(this.chromeCache);
     this.chromeCache?.destroy();
     this.chromeCache = null;
     this.cacheIn = rand(C.CACHE_MIN_S, C.CACHE_MAX_S);
   }
 
   private collectCache(): void {
+    if (!canPlay()) return;
+    this.settle();
     if (!this.chromeCache) return;
     this.glints.explode(50, this.chromeCache.x, this.chromeCache.y);
     this.removeCache();
@@ -408,14 +431,17 @@ export class Game extends Phaser.Scene {
       const base = perSecond(this.s);
       const gain = Math.max(base * C.CACHE_JACKPOT_S, clickPower(this.s, base) * C.CACHE_JACKPOT_CLICKS);
       earn(this.s, gain);
-      this.showBanner('CHROME JACKPOT!', `+${formatNum(gain)} scrap`, COLOR.chrome);
+      this.showBanner('CHROME JACKPOT!', `+${formatNum(gain)} ${C.CURRENCY}`, COLOR.chrome);
     } else {
       this.frenzyLeft = C.FRENZY_S;
+      run.frenzyEndsAtMs = run.now() + C.FRENZY_S * 1000;
       this.showBanner('DIG FRENZY!', `digging x${C.FRENZY_MULT} for ${C.FRENZY_S}s`, COLOR.chrome);
     }
   }
 
   private startStorm(): void {
+    this.settle();
+    run.stormEndsAtMs = run.now() + C.STORM_DURATION_S * 1000;
     this.stormLeft = C.STORM_DURATION_S;
     this.streaks.start();
     this.sand.start();
@@ -435,11 +461,9 @@ export class Game extends Phaser.Scene {
   // ── frame ─────────────────────────────────────────────────────────────────
   update(_time: number, deltaMs: number): void {
     const dt = Math.min(deltaMs, 250) / 1000;
-    const s = this.s;
-    s.playTime += dt;
+    if (!canPlay()) return;
+    this.settle();
     const ps = this.ps;
-    earn(s, ps * dt);
-    this.frenzyLeft = Math.max(0, this.frenzyLeft - dt);
 
     // The crew at work: a puff + tally from the deposit once a second.
     this.tickAcc += dt;
@@ -451,18 +475,13 @@ export class Game extends Phaser.Scene {
       }
     }
 
-    if (this.stormLeft > 0) {
-      this.stormLeft -= dt;
-      if (this.stormLeft <= 0) this.endStorm();
-    } else {
+    if (this.stormLeft === 0) {
       this.stormIn -= dt;
       if (this.stormIn <= 0) this.startStorm();
     }
 
     if (this.chromeCache) {
-      this.cacheLife -= dt;
-      if (this.cacheLife <= 0) this.removeCache();
-      else this.chromeCache.setAlpha(this.cacheLife < 3 && Math.sin(this.time.now / 50) < 0 ? 0.35 : 1);
+      this.chromeCache.setAlpha(this.cacheLife < 3 && Math.sin(this.time.now / 50) < 0 ? 0.35 : 1);
     } else {
       this.cacheIn -= dt;
       if (this.cacheIn <= 0) this.spawnCache();
@@ -478,7 +497,9 @@ export class Game extends Phaser.Scene {
     const storm = this.stormLeft > 0;
     this.scrapText.setText(formatNum(this.s.scrap));
     this.psText
-      .setText(`+${formatNum(ps)}/s${storm ? `  STORM x${C.STORM_MULT} ${Math.ceil(this.stormLeft)}s` : ''}`)
+      .setText(
+        `+${formatNum(ps)} ${C.RATE_LABEL}${storm ? `  STORM x${C.STORM_MULT} ${Math.ceil(this.stormLeft)}s` : ''}`,
+      )
       .setColor(css(storm ? COLOR.storm : COLOR.text));
     this.digText
       .setText(
@@ -498,6 +519,7 @@ export class Game extends Phaser.Scene {
     const sig = owned.join(',');
     if (sig === this.crewSig) return;
     this.crewSig = sig;
+    this.crew.each((child: Phaser.GameObjects.GameObject) => this.tweens.killTweensOf(child));
     this.crew.removeAll(true);
     const types = owned.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
     if (types.length === 0) return;
@@ -538,7 +560,7 @@ export class Game extends Phaser.Scene {
     const pc = pickCost(s.pick);
     this.pickRow.set({
       title: `FORGE PICK  LV${s.pick}`,
-      sub: 'dig x2, +1% of scrap/s per dig',
+      sub: 'dig x2, +1% of Credits/s per level',
       cost: formatNum(pc),
       affordable: s.scrap >= pc,
     });
@@ -552,8 +574,8 @@ export class Game extends Phaser.Scene {
       const nm = nextMilestone(owned);
       const sub =
         owned > 0
-          ? `x${owned}   +${formatNum(genRate(i, owned))}/s${nm ? `   2x at ${nm}` : ''}`
-          : `${g.blurb}  (+${formatNum(g.rate)}/s)`;
+          ? `x${owned}   +${formatNum(genRate(i, owned))} Credits/s${nm ? `   2x at ${nm}` : ''}`
+          : `${g.blurb}  (+${formatNum(g.rate)} Credits/s)`;
       this.genRows[i].set({
         title: revealed ? `${g.name}${qty > 1 ? ` x${qty}` : ''}` : '??????',
         sub: revealed ? sub : 'keep digging to discover',

@@ -13,7 +13,7 @@ export default defineConfig({
     // Tauri loads the fixed devUrl, so fail instead of silently moving ports.
     strictPort: true,
     // The desktop window replaces the browser tab.
-    open: !tauri,
+    open: !tauri && !process.env.PLAYWRIGHT_TEST,
     watch: { ignored: ['**/src-tauri/**'] },
   },
   build: {

@@ -76,6 +76,16 @@ export const FRENZY_MULT = 7;
 
 // ── SAVE ────────────────────────────────────────────────────────────────────
 export const SAVE_KEY = 'dust-baron-save-v1';
+export const PLAY_LOCK = `${SAVE_KEY}:play`;
+export const CURRENCY = 'Credits';
+export const RATE_LABEL = 'Credits/s';
+export const SESSION_UI = {
+  blockedTitle: 'GAME ALREADY OPEN',
+  blockedBody:
+    'This save is already in use in another tab or window. Close the other game, then reload this page to continue.',
+  temporaryTitle: 'TEMPORARY PLAY — NOT SAVED',
+  temporaryBody: 'Saving is unavailable. You can play, but progress will be lost when you reload or close this page.',
+} as const;
 export const AUTOSAVE_MS = 5000;
 export const OFFLINE_MIN_S = 30;
 export const OFFLINE_CAP_S = 2 * 60 * 60;

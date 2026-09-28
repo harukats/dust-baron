@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { COLOR, HEIGHT, MUSIC, MUSIC_VOLUME, TEX, WIDTH } from '../config.ts';
-import { formatNum } from '../economy.ts';
+import { formatNum, hasProgress } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
-import { clearSave, loadSave, run } from '../storage.ts';
-import { addBackdrop, fitImage, label, plateButton } from '../ui.ts';
+import { canPlay, loadSave, resetRun, run, settleRun, writeSave } from '../storage.ts';
+import { addBackdrop, addSoundControl, addTemporaryNotice, fitImage, label, plateButton } from '../ui.ts';
 
 /** Title: the logo over the wasteland. CONTINUE a save, or wipe it with a confirmed NEW RUN. */
 export class Title extends Phaser.Scene {
@@ -15,12 +15,16 @@ export class Title extends Phaser.Scene {
   }
 
   create(): void {
+    if (!canPlay()) return;
+    settleRun();
     this.sfx = new Sfx(this.sound);
     this.wipeArmed = false;
     const saved = run.state ?? loadSave();
-    const hasSave = !!saved && saved.total > 0;
+    const hasSave = !!saved && hasProgress(saved);
 
     addBackdrop(this, TEX.background);
+    addSoundControl(this);
+    addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.25).setOrigin(0);
 
     // Dust drifting across the title.
@@ -57,7 +61,7 @@ export class Title extends Phaser.Scene {
     });
 
     if (hasSave) {
-      label(this, WIDTH / 2, by + bh + 20, `lifetime scrap: ${formatNum(saved.total)}`, 18, COLOR.sub, 0.5, 0.5);
+      label(this, WIDTH / 2, by + bh + 20, `lifetime Credits: ${formatNum(saved.total)}`, 18, COLOR.sub, 0.5, 0.5);
       const nb = plateButton(
         this,
         bx + 50,
@@ -72,7 +76,9 @@ export class Title extends Phaser.Scene {
             return;
           }
           this.wipeArmed = true;
-          nb.text.setText('TAP AGAIN TO WIPE SAVE').setColor('#ff8a6a');
+          nb.text
+            .setText(run.mode === 'ephemeral' ? 'TAP AGAIN TO RESET RUN' : 'TAP AGAIN TO WIPE SAVE')
+            .setColor('#ff8a6a');
           nb.redraw(COLOR.danger);
           this.sfx.play('nope');
           this.time.delayedCall(3000, () => {
@@ -85,20 +91,29 @@ export class Title extends Phaser.Scene {
       );
     }
 
-    const hint = label(this, WIDTH / 2, HEIGHT - 36, 'CLICK OR PRESS SPACE', 20, COLOR.text, 0.5, 0.5);
+    const hint = label(
+      this,
+      WIDTH / 2,
+      HEIGHT - (run.mode === 'ephemeral' ? 76 : 36),
+      'CLICK OR PRESS SPACE',
+      20,
+      COLOR.text,
+      0.5,
+      0.5,
+    );
     this.tweens.add({ targets: hint, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
     this.input.keyboard?.once('keydown-SPACE', () => this.start(false));
     this.input.keyboard?.once('keydown-ENTER', () => this.start(false));
   }
 
   private start(fresh: boolean): void {
-    if (fresh) {
-      clearSave();
-      run.state = null;
-    }
+    if (!canPlay()) return;
+    settleRun();
+    if (fresh) resetRun();
+    else if (run.state) writeSave(run.state);
     // The first click unlocks audio; start the soundtrack once and let it run across scenes.
     if (!this.sound.get(MUSIC)) this.sound.add(MUSIC, { loop: true, volume: MUSIC_VOLUME }).play();
     this.sfx.play('start');
-    this.scene.start('Game', { fresh });
+    this.scene.start('Game');
   }
 }
