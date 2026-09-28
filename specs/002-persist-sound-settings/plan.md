@@ -64,7 +64,7 @@ specs/002-persist-sound-settings/
     └── sound-persistence.md
 ```
 
-`tasks.md`は次の`$speckit-tasks`で作成する。
+`tasks.md`は本ディレクトリに含め、必要に応じて次の`$speckit-tasks`で更新する。
 
 ### 変更対象のソース
 
