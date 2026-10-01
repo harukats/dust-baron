@@ -1,7 +1,7 @@
-// Economy acceptance tests — `pnpm test` (node:test, Node's native TS stripping).
+// Economy acceptance tests — `pnpm test` (Vitest).
 
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import {
   COST_GROWTH,
   CROWN_COST,

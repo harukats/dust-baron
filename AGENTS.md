@@ -8,8 +8,8 @@ Dust Baron: a post-apocalyptic desert idle/incremental miner built with Phaser 4
 
 - `pnpm dev` — Vite dev server on http://localhost:8080 (HMR; the old `Phaser.Game` is destroyed on reload)
 - `pnpm build` — typecheck → tests → `vite build` into `dist/` (tests gate the build)
-- `pnpm test` — economy tests via Node's built-in `node:test`, running the `.ts` files directly (no test framework, no transpile step)
-- Single test: `node --test --test-name-pattern="costs" src/economy.test.ts`
+- `pnpm test` — run the unit tests once with Vitest in a Node environment (`src/**/*.test.ts` only)
+- Single file: `pnpm test src/economy.test.ts`; matching name: `pnpm test src/economy.test.ts -t costs`
 - `pnpm typecheck` — `tsc --noEmit`
 - `pnpm lint` — Biome check (format + lint + import order), read-only; `pnpm lint:fix` applies safe fixes
 - `pnpm tauri dev` / `pnpm tauri build` — desktop app via Tauri 2 (needs Rust + OS webview deps; see below)
@@ -17,9 +17,9 @@ Dust Baron: a post-apocalyptic desert idle/incremental miner built with Phaser 4
 
 ## Architecture
 
-**Pure core vs. Phaser shell.** `src/config.ts`, `src/economy.ts` and `src/storage.ts` must not import Phaser or touch the DOM at module load. `pnpm test` runs them directly under Node, so importing Phaser there would break the tests. All tuning numbers (costs, rates, event timings, colours, asset keys) live in `config.ts`. All game rules (costs, production, milestones, save parsing, number formatting) live in `economy.ts` as pure functions over a `State` object.
+**Pure core vs. Phaser shell.** `src/config.ts`, `src/economy.ts` and `src/storage.ts` must not import Phaser or touch the DOM at module load. Vitest runs their unit tests in a Node environment, so importing Phaser there would break the tests. All tuning numbers (costs, rates, event timings, colours, asset keys) live in `config.ts`. All game rules (costs, production, milestones, save parsing, number formatting) live in `economy.ts` as pure functions over a `State` object.
 
-**Imports use explicit `.ts` extensions** (`allowImportingTsExtensions` + `erasableSyntaxOnly`). This is what lets Node strip types and run the tests without a build. Keep it: no enums, namespaces or constructor parameter properties.
+**Imports use explicit `.ts` extensions** (`allowImportingTsExtensions` + `erasableSyntaxOnly`). Keep this convention and the erasable TypeScript subset: no enums, namespaces or constructor parameter properties.
 
 **Run state outlives scenes.** The live `State` is held in `run.state` (module-level, `storage.ts`), not on a scene. `Game.create()` loads the save (adding offline earnings) only when `run.state` is null. Title → Game → Victory → Game keeps the same run.
 

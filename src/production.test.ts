@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { test } from 'vitest';
 import { buyGen, newState, settleProduction } from './economy.ts';
 
 test('経過時間・小数・同時刻・逆行を正確に精算する', () => {

@@ -51,13 +51,15 @@ pnpm dev        # http://localhost:8080
 | `pnpm dev` | 開発サーバー(ホットリロードあり) |
 | `pnpm build` | 型チェック → テスト → `dist/` へビルド |
 | `pnpm preview` | ビルド結果を確認用に配信 |
-| `pnpm test` | 経済ロジックのテスト(`node:test`) |
+| `pnpm test` | Vitest でユニットテストを1回実行（`src/**/*.test.ts`） |
 | `pnpm typecheck` | ソース・E2E・設定の厳格な型チェック |
 | `pnpm test:e2e` | 実ブラウザでの採掘・購入・保存・単一セッション・再入場検証 |
 | `pnpm test:performance` | headed Chromiumによる変更前後の性能計測（Vite起動が必要） |
 | `pnpm lint` / `pnpm lint:fix` | [Biome](https://biomejs.dev/) によるフォーマット・Lint のチェック / 自動修正 |
 
 E2Eの初回実行前に `pnpm exec playwright install chromium` でブラウザを用意します。Vite起動後、背景の実画面検証は `pnpm exec node tests/e2e/runtime-check.ts`、別ウィンドウの排他検証は `pnpm exec node tests/e2e/window-check.ts`、再入場時のメモリ記録は `pnpm exec node tests/e2e/memory-check.ts` で実行します。検証記録は [validation.md](specs/001-mine-clicker/validation.md)、性能結果は [performance.md](specs/001-mine-clicker/performance.md) を参照してください。
+
+ユニットテストは `pnpm test src/economy.test.ts` でファイル、`pnpm test src/economy.test.ts -t costs` で名前を絞れます。ブラウザ操作テストは別コマンドの `pnpm test:e2e` で実行します。
 
 `dist/` は相対パスで出力されるので、そのまま任意の静的ホスティングに置けます。
 
