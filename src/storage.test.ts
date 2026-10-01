@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { afterEach, beforeEach, test } from 'node:test';
+import { afterEach, beforeEach, test } from 'vitest';
 import { SAVE_KEY, SETTINGS_KEY } from './config.ts';
 import { newState, type State, serialize } from './economy.ts';
 import {
