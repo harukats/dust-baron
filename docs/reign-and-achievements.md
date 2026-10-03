@@ -1,7 +1,7 @@
 # 転生(Reign)と実績 設計書
 
 王冠チェーン(`CROWNS`、PR #17)の次の目標として、転生(Reign)と実績を追加する。実績は将来 Steam の実績にもつなげる。
-状態: 設計確定。PR 1(Reign コア)は実装済み。実績(PR 2)と Steam(PR 3)は未実装。
+状態: 設計確定。PR 1(Reign コア)と PR 2(実績)は実装済み。Steam(PR 3)は未実装。
 
 ## 決定事項
 
@@ -39,7 +39,7 @@
 
 ### State の追加(`SAVE_KEY` は v1 のまま)
 `reigns`、`shards`、`shardsEarned`、`relics: number[]`、`reignTime`、`reignTotal`、
-`stats: { storms, caches, golds, jackpots, fastestCrown }`(`stats` は実績に使うので PR 2 で追加する。PR 1 は他の6つだけ)。
+`stats: { storms, golds, jackpots, goldDigs, fastestCrown }`(実績の判定に使う累計。転生では引き継ぐ。実装は PR 2)。
 
 - `deserialize` は欠けたフィールドを 0 / 空で補う(既存の方針どおり)。
 - `playTime` は累計のまま残し、Victory の「TIME TO THE …」は `reignTime` で表示する。
@@ -58,8 +58,10 @@
 - **スピード**: `fast_crown_60`、`fast_crown_30`(`reignTime` で判定)
 - **イベント**: `first_storm`、`first_gold`、`jackpot_10`
 - **採掘**: `dig_100`、`dig_1k`、`dig_10k`
-- **所持**: `own_500`(同一Tierを500体)、`all_milestones`
-- **隠し**: `frenzy_777`、`pick_20`
+- **所持**: `own_100`(同一Tierを100体)、`full_crew`(全Tierを25体以上)
+- **隠し**: `frenzy_777`(ゴールド豊作中に77回掘る)、`pick_12`(Forge Pick Lv12)
+
+当初案の `own_500` / `all_milestones` / `pick_20` は、実装時にコストを計算すると到達不能だった(Scavenger 500体は約 2.9e31、Pick Lv20 は約 5.8e19)ため、上の値に置き換えた。
 
 名前・説明文・隠し指定は `config.ts` に置く。
 
@@ -75,6 +77,8 @@
 | `src/achievements.ts` | 判定の純関数 |
 | `src/platform.ts` | `unlock(id)` の1点。Web は何もしない版 |
 | `src/scenes/Reign.ts` | 獲得 Shard の予告、Relic ショップ、確認 |
+| `src/scenes/Achievements.ts` | 実績一覧(Title の左上から開く) |
+| `src/Toasts.ts` | 解除トースト(4件以上が一度に解除されたら1枚にまとめる) |
 | `src/scenes/Title.ts` / `Game.ts` | 実績一覧への導線、ASCEND ボタン、解除トースト |
 
 ## 4. Steam 実績

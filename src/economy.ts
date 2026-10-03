@@ -44,6 +44,19 @@ export interface State {
   relics: number[]; // level of each of RELICS
   reignTime: number; // seconds since this reign began
   reignTotal: number; // scrap earned this reign
+  stats: Stats; // lifetime counters for the achievements; kept across reigns
+}
+
+export interface Stats {
+  storms: number; // dust storms lived through
+  golds: number; // gold caches collected
+  jackpots: number; // chrome jackpots hit
+  goldDigs: number; // hand digs made during a gold frenzy
+  fastestCrown: number; // seconds of the quickest reign to its first crown (0 = never)
+}
+
+function newStats(): Stats {
+  return { storms: 0, golds: 0, jackpots: 0, goldDigs: 0, fastestCrown: 0 };
 }
 
 export function newState(): State {
@@ -62,6 +75,7 @@ export function newState(): State {
     relics: RELICS.map(() => 0),
     reignTime: 0,
     reignTotal: 0,
+    stats: newStats(),
   };
 }
 
@@ -216,6 +230,8 @@ export function buyCrown(s: State): boolean {
   if (!c || s.scrap < c.cost) return false;
   s.scrap -= c.cost;
   s.crowns++;
+  const t = s.reignTime;
+  if (s.crowns === 1 && t > 0 && (s.stats.fastestCrown === 0 || t < s.stats.fastestCrown)) s.stats.fastestCrown = t;
   return true;
 }
 
@@ -347,6 +363,11 @@ export function deserialize(json: string | null): State | null {
     // Saves from before reigns have no reign counters: the whole save is the first reign.
     s.reignTotal = Object.hasOwn(o, 'reignTotal') ? Math.min(num(o.reignTotal), s.total) : s.total;
     s.reignTime = Object.hasOwn(o, 'reignTime') ? num(o.reignTime) : s.playTime;
+    if (o.stats && typeof o.stats === 'object' && !Array.isArray(o.stats)) {
+      const st = o.stats as Partial<Record<keyof Stats, unknown>>;
+      for (const key of Object.keys(s.stats) as (keyof Stats)[])
+        s.stats[key] = key === 'fastestCrown' ? num(st[key]) : integer(st[key]);
+    }
     if (Array.isArray(o.relics))
       RELICS.forEach((r, i) => {
         s.relics[i] = Math.min(integer(o.relics?.[i]), r.costs.length);

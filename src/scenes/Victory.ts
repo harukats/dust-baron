@@ -4,6 +4,7 @@ import { COLOR, CROWNS, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { formatNum, formatTime } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, run, settleRun, writeSave } from '../storage.ts';
+import { AchievementToasts } from '../Toasts.ts';
 import { addBackdrop, addSoundControl, addTemporaryNotice, drawPlate, fitImage, label } from '../ui.ts';
 
 export interface VictoryData {
@@ -16,6 +17,8 @@ export interface VictoryData {
   final?: boolean;
   /** Name of the generator tier this crown unlocked, if any. */
   unlocked?: string;
+  /** Achievements this purchase unlocked, to announce here (the Game scene is gone). */
+  achievements?: string[];
 }
 
 /** Victory: you bought the first or the last crown. Tap to keep digging — the run continues. */
@@ -98,7 +101,10 @@ export class Victory extends Phaser.Scene {
           Phaser.Math.Between(HEIGHT * 0.15, HEIGHT * 0.45),
         ),
     });
-    new Sfx(this.sound).play('fanfare');
+    const sfx = new Sfx(this.sound);
+    sfx.play('fanfare');
+    if (data.achievements?.length)
+      this.time.delayedCall(900, () => new AchievementToasts(this, sfx, WIDTH / 2).push(data.achievements ?? []));
 
     const hint = label(
       this,

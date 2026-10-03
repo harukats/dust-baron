@@ -1,15 +1,19 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'vitest';
-import { SAVE_KEY, SETTINGS_KEY } from './config.ts';
+import { ACHIEVEMENTS_KEY, SAVE_KEY, SETTINGS_KEY } from './config.ts';
 import { newState, type State, serialize } from './economy.ts';
+import { platform } from './platform.ts';
 import {
   clearSave,
+  grantAchievements,
+  initializeAchievements,
   initializeRun,
   initializeSoundSettings,
   loadSave,
   resetRun,
   run,
   setSoundEnabled,
+  writeAchievements,
   writeSave,
   writeSoundSettings,
 } from './storage.ts';
@@ -45,6 +49,7 @@ beforeEach(() => {
   run.mode = 'owned';
   run.state = null;
   run.settings.soundEnabled = true;
+  run.achievements = {};
   run.accountedAtMs = 0;
   run.stormEndsAtMs = 0;
   run.frenzyMult = 1;
@@ -267,4 +272,61 @@ test('goldの一時効果は保存せず、既存進行を再読込・新規ラ�
   assert.equal(liveState().scrap, 0);
   assert.equal(run.frenzyMult, 1);
   assert.equal(run.frenzyEndsAtMs, 0);
+});
+
+test('実績は別キーで保存し、NEW RUNでも消えず、プラットフォームへ1回だけ通知する', () => {
+  const reported: string[] = [];
+  const original = platform.unlockAchievement;
+  platform.unlockAchievement = (id) => reported.push(id);
+  try {
+    initializeRun(1000);
+    const s = liveState();
+    s.clicks = 100;
+    assert.deepEqual(grantAchievements(5000), ['dig_100']);
+    assert.deepEqual(run.achievements, { dig_100: 5000 });
+    assert.deepEqual(JSON.parse(data.get(ACHIEVEMENTS_KEY) ?? 'null'), { dig_100: 5000 });
+    assert.notEqual(data.get(ACHIEVEMENTS_KEY), data.get(SAVE_KEY), 'a different key from the save');
+    assert.deepEqual(grantAchievements(6000), [], 'nothing new the second time');
+    assert.deepEqual(reported, ['dig_100']);
+    assert.equal(run.achievements.dig_100, 5000, 'the first unlock time is kept');
+
+    resetRun(7000); // NEW RUN
+    assert.equal(liveState().clicks, 0);
+    assert.deepEqual(JSON.parse(data.get(ACHIEVEMENTS_KEY) ?? 'null'), { dig_100: 5000 });
+    assert.deepEqual(grantAchievements(8000), [], 'a wiped run does not unlock it again');
+    initializeAchievements();
+    assert.deepEqual(run.achievements, { dig_100: 5000 }, 'and it is read back after a reload');
+  } finally {
+    platform.unlockAchievement = original;
+  }
+});
+
+test('実績の読み込みは不正な値を捨て、既知のidだけ受け入れる', () => {
+  for (const raw of [null, '{', 'null', '[]', '42', '"x"']) {
+    if (raw === null) data.delete(ACHIEVEMENTS_KEY);
+    else data.set(ACHIEVEMENTS_KEY, raw);
+    run.achievements = { dig_100: 1 };
+    initializeAchievements();
+    assert.deepEqual(run.achievements, {}, String(raw));
+  }
+  data.set(
+    ACHIEVEMENTS_KEY,
+    JSON.stringify({ dig_100: 123, dig_1k: 'x', dig_10k: -5, crown_1: null, crown_2: 0, nope: 99, crown_3: 7.5 }),
+  );
+  initializeAchievements();
+  assert.deepEqual(run.achievements, { dig_100: 123, crown_3: 7.5 });
+});
+
+test('一時プレイの実績はメモリだけに残し、保存領域に触れない', () => {
+  run.mode = 'ephemeral';
+  initializeRun(1000);
+  liveState().clicks = 100;
+  assert.deepEqual(grantAchievements(5000), ['dig_100']);
+  assert.equal(writeAchievements(), false);
+  initializeAchievements();
+  assert.deepEqual(run.achievements, { dig_100: 5000 }, 'a restart in the same page keeps it');
+  assert.deepEqual(calls, []);
+  run.mode = 'blocked';
+  run.state = null;
+  assert.deepEqual(grantAchievements(), [], 'nothing to grant without a live run');
 });

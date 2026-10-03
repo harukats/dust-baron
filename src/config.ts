@@ -143,6 +143,48 @@ export const RELIC_OFFLINE_S = 2 * 60 * 60; // offline cap added per level
 export const RELIC_HEAD_START = 10; // Scavengers per level
 export const RELIC_FRENZY_S = 5; // frenzy seconds per level
 
+// ── ACHIEVEMENTS ────────────────────────────────────────────────────────────
+export interface AchievementDef {
+  id: string; // stable: it is also the Steam API name
+  name: string;
+  desc: string;
+  goal: number; // the threshold the check in achievements.ts compares against (seconds for the speed ones)
+  hidden?: boolean; // name and description stay secret until unlocked
+}
+export const ACHIEVEMENTS: readonly AchievementDef[] = [
+  // progress
+  { id: 'crown_1', name: 'DUST CROWNED', desc: 'Buy the Dust Crown', goal: 1 },
+  { id: 'crown_2', name: 'THRONE ROOM', desc: 'Buy the Sandstorm Throne', goal: 2 },
+  { id: 'crown_3', name: 'WALL BUILDER', desc: 'Buy the Wasteland Citadel', goal: 3 },
+  { id: 'crown_4', name: 'LORD OF ORBIT', desc: 'Buy the Orbital Scrapyard', goal: 4 },
+  { id: 'crown_5', name: 'FOREVER KING', desc: 'Buy the Crown of Ages', goal: 5 },
+  { id: 'tier_7', name: 'HOVERING', desc: 'Own a Hover Hauler', goal: 1 },
+  { id: 'tier_8', name: 'WORM RIDER', desc: 'Own a Dune Leviathan', goal: 1 },
+  { id: 'tier_9', name: 'HEAD IN THE CLOUDS', desc: 'Own a Sky Dredger', goal: 1 },
+  { id: 'tier_10', name: 'SPACE JUNKER', desc: 'Own an Orbital Scrapper', goal: 1 },
+  // reigns
+  { id: 'reign_1', name: 'NEW DYNASTY', desc: 'Ascend for the first time', goal: 1 },
+  { id: 'reign_5', name: 'LONG LIVE THE KING', desc: 'Ascend 5 times', goal: 5 },
+  { id: 'shards_100', name: 'SHARD HOARDER', desc: 'Earn 100 shards in total', goal: 100 },
+  // speed
+  { id: 'fast_crown_60', name: 'QUICK STUDY', desc: 'Buy the Dust Crown within 60 min of a reign', goal: 60 * 60 },
+  { id: 'fast_crown_30', name: 'SPEED RUN', desc: 'Buy the Dust Crown within 30 min of a reign', goal: 30 * 60 },
+  // events
+  { id: 'first_storm', name: 'DUST IN THE EYES', desc: 'Live through a dust storm', goal: 1 },
+  { id: 'first_gold', name: 'ALL THAT GLITTERS', desc: 'Collect a gold cache', goal: 1 },
+  { id: 'jackpot_10', name: 'CHROME COLLECTOR', desc: 'Hit 10 chrome jackpots', goal: 10 },
+  // digging
+  { id: 'dig_100', name: 'HAND DIGGER', desc: 'Dig 100 times by hand', goal: 100 },
+  { id: 'dig_1k', name: 'CALLUSES', desc: 'Dig 1,000 times by hand', goal: 1_000 },
+  { id: 'dig_10k', name: 'IRON WRIST', desc: 'Dig 10,000 times by hand', goal: 10_000 },
+  // crew
+  { id: 'own_100', name: 'CREW BOSS', desc: 'Own 100 of one machine', goal: 100 },
+  { id: 'full_crew', name: 'FULL CREW', desc: 'Own 25 of every machine', goal: 25 },
+  // hidden
+  { id: 'frenzy_777', name: 'JACKPOT FEVER', desc: 'Dig 77 times during gold frenzies', goal: 77, hidden: true },
+  { id: 'pick_12', name: 'FORGED IN FIRE', desc: 'Take the Forge Pick to level 12', goal: 12, hidden: true },
+];
+
 // ── EVENTS ──────────────────────────────────────────────────────────────────
 export const STORM_MIN_S = 70;
 export const STORM_MAX_S = 110;
@@ -161,6 +203,7 @@ export const GOLD_FRENZY_MULT = 777;
 // ── SAVE ────────────────────────────────────────────────────────────────────
 export const SAVE_KEY = 'dust-baron-save-v1';
 export const SETTINGS_KEY = 'dust-baron-settings-v1';
+export const ACHIEVEMENTS_KEY = 'dust-baron-achievements-v1'; // apart from the save: NEW RUN keeps achievements
 export const DEFAULT_SOUND_ENABLED = true;
 export const PLAY_LOCK = `${SAVE_KEY}:play`;
 export const CURRENCY = 'Credits';
