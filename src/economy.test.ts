@@ -419,6 +419,7 @@ test('ascend banks the shards, resets the reign and keeps the rest', () => {
   s.relics[RELICS.findIndex((r) => r.id === 'storm_caller')] = 1;
   s.shards = 3;
   s.shardsEarned = 10;
+  s.stats.storms = 4;
   const gain = ascend(s);
   assert.equal(gain, 46);
   assert.equal(s.shards, 49);
@@ -436,6 +437,7 @@ test('ascend banks the shards, resets the reign and keeps the rest', () => {
   assert.equal(s.clicks, 50);
   assert.equal(s.playTime, 9000);
   assert.equal(relicLevel(s, 'storm_caller'), 1);
+  assert.equal(s.stats.storms, 4);
   assert.equal(perSecond(s), 0);
   assert.ok(!canAscend(s), 'cannot ascend twice in a row');
 });

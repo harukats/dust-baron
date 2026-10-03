@@ -1,4 +1,5 @@
-import { DEFAULT_SOUND_ENABLED, SAVE_KEY, SETTINGS_KEY } from './config.ts';
+import { newlyUnlocked } from './achievements.ts';
+import { ACHIEVEMENTS, ACHIEVEMENTS_KEY, DEFAULT_SOUND_ENABLED, SAVE_KEY, SETTINGS_KEY } from './config.ts';
 import {
   type DigMultiplier,
   deserialize,
@@ -9,6 +10,7 @@ import {
   serialize,
   settleProduction,
 } from './economy.ts';
+import { platform } from './platform.ts';
 import type { SessionMode } from './session.ts';
 
 export interface SoundSettings {
@@ -19,6 +21,7 @@ export interface SoundSettings {
 export const run: {
   state: State | null;
   settings: SoundSettings;
+  achievements: Record<string, number>; // id -> unlocked at (epoch ms)
   mode: SessionMode;
   accountedAtMs: number;
   stormEndsAtMs: number;
@@ -29,6 +32,7 @@ export const run: {
 } = {
   state: null,
   settings: { soundEnabled: DEFAULT_SOUND_ENABLED },
+  achievements: {},
   mode: 'acquiring',
   accountedAtMs: 0,
   stormEndsAtMs: 0,
@@ -69,6 +73,44 @@ export function writeSoundSettings(): boolean {
     return false;
   }
 }
+/** Achievements live under their own key, so NEW RUN (which clears the save) never takes them away. */
+export function initializeAchievements(): void {
+  // 一時プレイの同一ページ内再起動ではライブ値を保持する。
+  if (run.mode !== 'owned') return;
+  run.achievements = {};
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(ACHIEVEMENTS_KEY) ?? 'null');
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    for (const a of ACHIEVEMENTS) {
+      const at = (value as Record<string, unknown>)[a.id];
+      if (typeof at === 'number' && Number.isFinite(at) && at > 0) run.achievements[a.id] = at;
+    }
+  } catch {
+    // 読み取り不能でも実績なしでプレイを続ける。
+  }
+}
+
+export function writeAchievements(): boolean {
+  if (run.mode !== 'owned') return false;
+  try {
+    localStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(run.achievements));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Unlock whatever the live run has earned: record it, save it, tell the platform. Returns the new ids. */
+export function grantAchievements(now = Date.now()): string[] {
+  if (!run.state || !canPlay()) return [];
+  const ids = newlyUnlocked(run.state, run.achievements);
+  if (ids.length === 0) return ids;
+  for (const id of ids) run.achievements[id] = now;
+  writeAchievements();
+  for (const id of ids) platform.unlockAchievement(id);
+  return ids;
+}
+
 export function loadSave(): State | null {
   if (run.mode !== 'owned') return null;
   try {

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { version } from '../../package.json';
 import { applySoundSettings, ensureMusic } from '../audio.ts';
-import { COLOR, HEIGHT, TEX, TITLE_VERSION_UI, WIDTH } from '../config.ts';
+import { ACHIEVEMENTS, COLOR, HEIGHT, TEX, TITLE_VERSION_UI, WIDTH } from '../config.ts';
 import { formatNum, hasProgress } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, loadSave, resetRun, run, settleRun, writeSave } from '../storage.ts';
@@ -30,6 +30,11 @@ export class Title extends Phaser.Scene {
     addSoundControl(this);
     addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.25).setOrigin(0);
+    const unlocked = ACHIEVEMENTS.filter((a) => run.achievements[a.id]).length;
+    plateButton(this, 24, 16, 260, 34, `ACHIEVEMENTS ${unlocked}/${ACHIEVEMENTS.length}`, 16, () => {
+      this.sfx.play('click');
+      this.scene.start('Achievements');
+    });
 
     // Dust drifting across the title.
     this.add.particles(0, 0, TEX.spark, {

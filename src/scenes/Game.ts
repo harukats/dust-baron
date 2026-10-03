@@ -37,7 +37,8 @@ import {
 } from '../economy.ts';
 import { ShopRow } from '../ShopRow.ts';
 import { Sfx } from '../sfx.ts';
-import { canPlay, initializeRun, resetRun, run, settleRun, writeSave } from '../storage.ts';
+import { canPlay, grantAchievements, initializeRun, resetRun, run, settleRun, writeSave } from '../storage.ts';
+import { AchievementToasts } from '../Toasts.ts';
 import { addBackdrop, addTemporaryNotice, css, drawPlate, fitImage, label, plateButton } from '../ui.ts';
 
 const { COLOR, WIDTH, HEIGHT } = C;
@@ -67,6 +68,7 @@ export class Game extends Phaser.Scene {
   private hintText!: Phaser.GameObjects.Text;
   private muteText!: Phaser.GameObjects.Text;
   private qtyText!: Phaser.GameObjects.Text;
+  private toasts!: AchievementToasts;
   private reignBtn!: ReturnType<typeof plateButton>;
   private shardText!: Phaser.GameObjects.Text;
   private pickRow!: ShopRow;
@@ -138,6 +140,7 @@ export class Game extends Phaser.Scene {
     this.buildShop();
     this.buildEffects();
     this.buildBanner();
+    this.toasts = new AchievementToasts(this, this.sfx, MINE_W / 2);
     addTemporaryNotice(this);
 
     const kb = this.input.keyboard;
@@ -393,6 +396,8 @@ export class Game extends Phaser.Scene {
     if (!canPlay()) return;
     this.settle();
     const gain = this.digPower;
+    if (activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, run.now()) === C.GOLD_FRENZY_MULT)
+      this.s.stats.goldDigs++;
     earn(this.s, gain);
     this.s.clicks++;
 
@@ -446,6 +451,7 @@ export class Game extends Phaser.Scene {
       this.sfx.play('nope');
       return;
     }
+    const earned = grantAchievements();
     writeSave(this.s);
     const stage = this.s.crowns - 1;
     const crown = C.CROWNS[stage];
@@ -459,9 +465,11 @@ export class Game extends Phaser.Scene {
         stage,
         final: isWon(this.s),
         unlocked,
+        achievements: earned,
       });
       return;
     }
+    this.toasts.push(earned);
     this.sfx.play('fanfare');
     this.showBanner(
       crown.name.toUpperCase(),
@@ -478,6 +486,7 @@ export class Game extends Phaser.Scene {
 
   private openReign(): void {
     if (!canPlay()) return;
+    grantAchievements();
     this.save();
     this.scene.start('Reign');
   }
@@ -551,6 +560,7 @@ export class Game extends Phaser.Scene {
     this.sfx.play('cache');
     if (reward.kind === 'credits') {
       earn(this.s, reward.amount);
+      this.s.stats.jackpots++;
       this.showBanner('CHROME JACKPOT!', `+${formatNum(reward.amount)} ${C.CURRENCY}`, COLOR.chrome);
     } else {
       const now = run.now();
@@ -560,6 +570,7 @@ export class Game extends Phaser.Scene {
       run.frenzyEndsAtMs = effect.endsAtMs;
       this.frenzyLeft = Math.max(0, (effect.endsAtMs - now) / 1000);
       const gold = effect.mult === C.GOLD_FRENZY_MULT;
+      if (reward.mult === C.GOLD_FRENZY_MULT) this.s.stats.golds++;
       this.showBanner(
         old > reward.mult ? 'GOLD FRENZY CONTINUES!' : gold ? 'GOLD FRENZY!' : 'DIG FRENZY!',
         `digging x${effect.mult} for ${Math.ceil(this.frenzyLeft)}s`,
@@ -572,6 +583,7 @@ export class Game extends Phaser.Scene {
     this.settle();
     run.stormEndsAtMs = run.now() + C.STORM_DURATION_S * 1000;
     this.stormLeft = C.STORM_DURATION_S;
+    this.s.stats.storms++;
     this.streaks.start();
     this.sand.start();
     this.tweens.add({ targets: this.stormOverlay, fillAlpha: 0.3, duration: 1200 });
@@ -598,6 +610,7 @@ export class Game extends Phaser.Scene {
     this.tickAcc += dt;
     if (this.tickAcc >= 1) {
       this.tickAcc -= 1;
+      this.toasts.push(grantAchievements());
       if (ps > 0) {
         this.floater(DEP.x + rand(-60, 60), DEP.y - DEP.size * 0.2, `+${formatNum(ps)}`, COLOR.sand, 20, -70);
         this.dust.explode(5, DEP.x + rand(-60, 60), DEP.y + DEP.size * 0.2);
