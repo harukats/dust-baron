@@ -1,5 +1,14 @@
 import { DEFAULT_SOUND_ENABLED, SAVE_KEY, SETTINGS_KEY } from './config.ts';
-import { deserialize, earn, newState, offlineGain, type State, serialize, settleProduction } from './economy.ts';
+import {
+  type DigMultiplier,
+  deserialize,
+  earn,
+  newState,
+  offlineGain,
+  type State,
+  serialize,
+  settleProduction,
+} from './economy.ts';
 import type { SessionMode } from './session.ts';
 
 export interface SoundSettings {
@@ -14,6 +23,7 @@ export const run: {
   accountedAtMs: number;
   stormEndsAtMs: number;
   frenzyEndsAtMs: number;
+  frenzyMult: DigMultiplier;
   offline: number;
   now: () => number;
 } = {
@@ -23,6 +33,7 @@ export const run: {
   accountedAtMs: 0,
   stormEndsAtMs: 0,
   frenzyEndsAtMs: 0,
+  frenzyMult: 1,
   offline: 0,
   now: () => Date.now(),
 };
@@ -101,6 +112,7 @@ export function initializeRun(now = Date.now(), liveAt = now): number {
   run.accountedAtMs = liveAt;
   run.stormEndsAtMs = 0;
   run.frenzyEndsAtMs = 0;
+  run.frenzyMult = 1;
   const gain = saved && saved.lastSave > 0 ? offlineGain(saved, (now - saved.lastSave) / 1000) : 0;
   earn(run.state, gain);
   run.offline = gain;
@@ -114,6 +126,7 @@ export function resetRun(now = run.now()): void {
   run.accountedAtMs = now;
   run.stormEndsAtMs = 0;
   run.frenzyEndsAtMs = 0;
+  run.frenzyMult = 1;
   run.offline = 0;
   if (run.mode === 'owned') writeSave(run.state);
 }

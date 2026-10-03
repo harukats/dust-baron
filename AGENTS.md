@@ -23,7 +23,7 @@ Dust Baron: a post-apocalyptic desert idle/incremental miner built with Phaser 4
 
 **Run state outlives scenes.** The live `State` is held in `run.state` (module-level, `storage.ts`), not on a scene. `Game.create()` loads the save (adding offline earnings) only when `run.state` is null. Title → Game → Victory → Game keeps the same run.
 
-**Phaser reuses scene instances on restart.** Class field initialisers do not run again, so `Game.create()` resets every per-run field by hand. Also never name a scene field after a built-in `Phaser.Scene` property. `cache` is the known trap: it shadows the CacheManager, which is why the chrome-cache pickup field is called `chromeCache`.
+**Phaser reuses scene instances on restart.** Class field initialisers do not run again, so `Game.create()` resets every per-run field by hand. Also never name a scene field after a built-in `Phaser.Scene` property. `cache` is the known trap: it shadows the CacheManager, which is why the shared chrome/gold pickup field is called `cachePickup`.
 
 **Scene flow:** `Boot` (generates the `spark`/`streak` textures) → `Preloader` (loads `public/assets/`, then switches the pixel-art textures listed in `PIXEL_TEXTURES` to NEAREST filtering) → `Title` → `Game` → `Victory`. The game renders at a fixed 1280×720 and scales with `Scale.FIT`. Global `pixelArt` is off on purpose, so text and particles stay smooth while the sprites stay crisp.
 

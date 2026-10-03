@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
 import { fixture, start, state, type TestScene } from './helpers.ts';
 
-type RuntimeScene = TestScene & { spawnCache(): void; chromeCache: unknown; frenzyLeft: number; stormLeft: number };
+type RuntimeScene = TestScene & { spawnCache(): void; cachePickup: unknown; frenzyLeft: number; stormLeft: number };
 
 // headedの実タブ切替・実ウィンドウ最小化を検証する。合成visibilityイベントを使わない。
 await mkdir('test-results', { recursive: true });
@@ -70,6 +70,7 @@ try {
     scene.startStorm();
     scene.spawnCache();
     const run = window.game.registry.get('run');
+    run.frenzyMult = 7;
     run.frenzyEndsAtMs = run.now() + 20_000;
   });
   const effectsBefore = (await state(page)).scrap;
@@ -81,7 +82,7 @@ try {
   expect(
     await page.evaluate(() => {
       const scene = window.game.scene.getScene('Game') as RuntimeScene;
-      return scene.stormLeft === 0 && scene.frenzyLeft === 0 && scene.chromeCache === null;
+      return scene.stormLeft === 0 && scene.frenzyLeft === 0 && scene.cachePickup === null;
     }),
   ).toBe(true);
   samples.push({ mode: 'hidden-effects', trial: 1, gain: effectsGain, seconds: 25, pass: true });

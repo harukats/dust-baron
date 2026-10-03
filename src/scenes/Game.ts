@@ -1,14 +1,18 @@
 // The mine. Click the ore deposit to dig scrap, spend it in the Supply Depot on
 // crew and machines that dig for you, ride out dust storms (production ×2) and
-// grab chrome caches. Buying the Dust Crown wins.
+// grab chrome and gold caches. Buying the Dust Crown wins.
 import Phaser from 'phaser';
 import { applySoundSettings, ensureMusic, toggleSound } from '../audio.ts';
 import * as C from '../config.ts';
 import {
+  activeDigMultiplier,
+  applyDigFrenzy,
   buyCrown,
   buyGen,
   buyPick,
-  clickPower,
+  type CacheKind,
+  cacheReward,
+  digGain,
   earn,
   formatNum,
   genCost,
@@ -19,6 +23,7 @@ import {
   perSecond,
   pickCost,
   type State,
+  selectCacheKind,
 } from '../economy.ts';
 import { ShopRow } from '../ShopRow.ts';
 import { Sfx } from '../sfx.ts';
@@ -27,6 +32,14 @@ import { addBackdrop, addTemporaryNotice, css, drawPlate, fitImage, label, plate
 
 const { COLOR, WIDTH, HEIGHT } = C;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
+
+function updateLabel(text: Phaser.GameObjects.Text, value: string, color?: number): void {
+  if (text.text !== value) text.setText(value);
+  if (color !== undefined) {
+    const nextColor = css(color);
+    if (text.style.color !== nextColor) text.setColor(nextColor);
+  }
+}
 
 // Layout (1280×720): mine on the left, Supply Depot on the right.
 const MINE_W = 740;
@@ -59,7 +72,9 @@ export class Game extends Phaser.Scene {
   private banner!: Phaser.GameObjects.Container;
   private bannerTitle!: Phaser.GameObjects.Text;
   private bannerSub!: Phaser.GameObjects.Text;
-  private chromeCache: Phaser.GameObjects.Image | null = null;
+  private cachePickup: Phaser.GameObjects.Image | null = null;
+  private cacheKind: CacheKind | null = null;
+  private cacheLabel: Phaser.GameObjects.Text | null = null;
   private cacheLife = 0;
   private cacheExpiresAtMs = 0;
   private stormIn = 0;
@@ -77,7 +92,9 @@ export class Game extends Phaser.Scene {
     // Scene instances are reused on restart: reset every piece of per-run state here.
     this.genRows = [];
     this.crewSig = '';
-    this.chromeCache = null;
+    this.cachePickup = null;
+    this.cacheKind = null;
+    this.cacheLabel = null;
     this.cacheLife = 0;
     this.cacheExpiresAtMs = 0;
     this.frenzyLeft = 0;
@@ -96,6 +113,7 @@ export class Game extends Phaser.Scene {
     settleRun();
     run.stormEndsAtMs = 0;
     run.frenzyEndsAtMs = 0;
+    run.frenzyMult = 1;
     this.s = run.state as State;
 
     addBackdrop(this, C.TEX.background);
@@ -119,6 +137,9 @@ export class Game extends Phaser.Scene {
     kb?.on('keydown-M', onMute);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.save();
+      this.removeCache();
+      run.frenzyMult = 1;
+      run.frenzyEndsAtMs = 0;
       kb?.off('keydown-SPACE', onDig);
       kb?.off('keydown-Q', onQty);
       kb?.off('keydown-M', onMute);
@@ -140,9 +161,12 @@ export class Game extends Phaser.Scene {
     const now = run.now();
     const wasStorm = this.stormLeft > 0;
     this.stormLeft = Math.max(0, (run.stormEndsAtMs - now) / 1000);
-    this.frenzyLeft = Math.max(0, (run.frenzyEndsAtMs - now) / 1000);
+    this.frenzyLeft =
+      activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, now) > 1
+        ? Math.max(0, (run.frenzyEndsAtMs - now) / 1000)
+        : 0;
     if (wasStorm && this.stormLeft === 0) this.endStorm();
-    if (this.chromeCache) {
+    if (this.cachePickup) {
       this.cacheLife = Math.max(0, (this.cacheExpiresAtMs - now) / 1000);
       if (this.cacheLife === 0) this.removeCache();
     }
@@ -329,7 +353,7 @@ export class Game extends Phaser.Scene {
     return perSecond(this.s, run.stormEndsAtMs > run.now());
   }
   private get digPower(): number {
-    return clickPower(this.s, perSecond(this.s)) * (run.frenzyEndsAtMs > run.now() ? C.FRENZY_MULT : 1);
+    return digGain(this.s, run.frenzyMult, run.frenzyEndsAtMs, run.now());
   }
 
   private dig(x: number, y: number): void {
@@ -353,7 +377,7 @@ export class Game extends Phaser.Scene {
       x + rand(-20, 20),
       y - 20,
       `+${formatNum(gain)}`,
-      this.frenzyLeft > 0 ? COLOR.chrome : COLOR.hazard,
+      this.frenzyLeft > 0 ? this.frenzyColor : COLOR.hazard,
       28,
       -130,
     );
@@ -402,43 +426,85 @@ export class Game extends Phaser.Scene {
     toggleSound(this);
   }
 
+  private get frenzyColor(): number {
+    return activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, run.now()) === C.GOLD_FRENZY_MULT
+      ? COLOR.goldBright
+      : COLOR.chrome;
+  }
+
   private spawnCache(): void {
-    // Spawn in the open ground either side of the deposit, clear of the stats plate and crew row.
+    if (!canPlay() || this.cachePickup) return;
+    const now = run.now();
+    if (!Number.isFinite(now) || !Number.isFinite(now + C.CACHE_LIFE_S * 1000)) return;
+    const kind = selectCacheKind(Math.random());
     const x = Math.random() < 0.5 ? rand(70, 190) : rand(MINE_W - 190, MINE_W - 60);
     const y = rand(300, 520);
-    const c = fitImage(this.add.image(x, y, C.TEX.cache), 96).setDepth(6);
-    c.setInteractive({ useHandCursor: true });
+    const c = fitImage(this.add.image(x, y, kind === 'gold' ? C.TEX.goldCache : C.TEX.cache), 96).setDepth(6);
+    c.setInteractive({ useHandCursor: true, pixelPerfect: true });
     c.on(Phaser.Input.Events.GAMEOBJECT_POINTER_DOWN, () => this.collectCache());
-    this.tweens.add({ targets: c, y: y - 12, duration: 700, ease: 'Sine.easeInOut', yoyo: true, repeat: -1 });
-    this.chromeCache = c;
+    this.cacheLabel = label(
+      this,
+      x,
+      y + 60,
+      kind === 'gold' ? 'GOLD CACHE' : 'CHROME CACHE',
+      13,
+      kind === 'gold' ? COLOR.goldBright : COLOR.chrome,
+      0.5,
+      0.5,
+    ).setDepth(6);
+    this.tweens.add({
+      targets: [c, this.cacheLabel],
+      y: '-=12',
+      duration: 700,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
+    this.cachePickup = c;
+    this.cacheKind = kind;
     this.cacheLife = C.CACHE_LIFE_S;
-    this.cacheExpiresAtMs = run.now() + C.CACHE_LIFE_S * 1000;
+    this.cacheExpiresAtMs = now + C.CACHE_LIFE_S * 1000;
     this.sfx.play('chime');
   }
 
   private removeCache(): void {
-    if (this.chromeCache) this.tweens.killTweensOf(this.chromeCache);
-    this.chromeCache?.destroy();
-    this.chromeCache = null;
+    if (this.cachePickup) this.tweens.killTweensOf(this.cachePickup);
+    if (this.cacheLabel) this.tweens.killTweensOf(this.cacheLabel);
+    this.cachePickup?.destroy();
+    this.cacheLabel?.destroy();
+    this.cachePickup = null;
+    this.cacheLabel = null;
+    this.cacheKind = null;
+    this.cacheLife = 0;
+    this.cacheExpiresAtMs = 0;
     this.cacheIn = rand(C.CACHE_MIN_S, C.CACHE_MAX_S);
   }
 
   private collectCache(): void {
     if (!canPlay()) return;
     this.settle();
-    if (!this.chromeCache) return;
-    this.glints.explode(50, this.chromeCache.x, this.chromeCache.y);
+    if (!this.cachePickup || !this.cacheKind) return;
+    const reward = cacheReward(this.s, this.cacheKind, this.cacheKind === 'gold' ? 0 : Math.random());
+    if (reward.kind === 'none') return;
+    this.glints.explode(50, this.cachePickup.x, this.cachePickup.y);
     this.removeCache();
     this.sfx.play('cache');
-    if (Math.random() < 0.5) {
-      const base = perSecond(this.s);
-      const gain = Math.max(base * C.CACHE_JACKPOT_S, clickPower(this.s, base) * C.CACHE_JACKPOT_CLICKS);
-      earn(this.s, gain);
-      this.showBanner('CHROME JACKPOT!', `+${formatNum(gain)} ${C.CURRENCY}`, COLOR.chrome);
+    if (reward.kind === 'credits') {
+      earn(this.s, reward.amount);
+      this.showBanner('CHROME JACKPOT!', `+${formatNum(reward.amount)} ${C.CURRENCY}`, COLOR.chrome);
     } else {
-      this.frenzyLeft = C.FRENZY_S;
-      run.frenzyEndsAtMs = run.now() + C.FRENZY_S * 1000;
-      this.showBanner('DIG FRENZY!', `digging x${C.FRENZY_MULT} for ${C.FRENZY_S}s`, COLOR.chrome);
+      const now = run.now();
+      const old = activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, now);
+      const effect = applyDigFrenzy(run.frenzyMult, run.frenzyEndsAtMs, reward.mult, now);
+      run.frenzyMult = effect.mult;
+      run.frenzyEndsAtMs = effect.endsAtMs;
+      this.frenzyLeft = Math.max(0, (effect.endsAtMs - now) / 1000);
+      const gold = effect.mult === C.GOLD_FRENZY_MULT;
+      this.showBanner(
+        old > reward.mult ? 'GOLD FRENZY CONTINUES!' : gold ? 'GOLD FRENZY!' : 'DIG FRENZY!',
+        `digging x${effect.mult} for ${Math.ceil(this.frenzyLeft)}s`,
+        this.frenzyColor,
+      );
     }
   }
 
@@ -483,13 +549,14 @@ export class Game extends Phaser.Scene {
       if (this.stormIn <= 0) this.startStorm();
     }
 
-    if (this.chromeCache) {
-      this.chromeCache.setAlpha(this.cacheLife < 3 && Math.sin(this.time.now / 50) < 0 ? 0.35 : 1);
+    if (this.cachePickup) {
+      this.cachePickup.setAlpha(this.cacheLife < 3 && Math.sin(this.time.now / 50) < 0 ? 0.35 : 1);
     } else {
       this.cacheIn -= dt;
       if (this.cacheIn <= 0) this.spawnCache();
     }
 
+    if (this.frenzyGlow.fillColor !== this.frenzyColor) this.frenzyGlow.setFillStyle(this.frenzyColor, 0.15);
     this.frenzyGlow.setVisible(this.frenzyLeft > 0).setAlpha(0.5 + 0.5 * Math.sin(this.time.now / 80));
     this.refreshHud(ps);
     this.refreshCrew();
@@ -498,20 +565,21 @@ export class Game extends Phaser.Scene {
 
   private refreshHud(ps: number): void {
     const storm = this.stormLeft > 0;
-    this.scrapText.setText(formatNum(this.s.scrap));
-    this.psText
-      .setText(
-        `+${formatNum(ps)} ${C.RATE_LABEL}${storm ? `  STORM x${C.STORM_MULT} ${Math.ceil(this.stormLeft)}s` : ''}`,
-      )
-      .setColor(css(storm ? COLOR.storm : COLOR.text));
-    this.digText
-      .setText(
-        `DIG +${formatNum(this.digPower)}${this.frenzyLeft > 0 ? `  FRENZY ${Math.ceil(this.frenzyLeft)}s` : ''}`,
-      )
-      .setColor(css(this.frenzyLeft > 0 ? COLOR.chrome : COLOR.sand));
-    this.muteText.setText(run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
+    updateLabel(this.scrapText, formatNum(this.s.scrap));
+    updateLabel(
+      this.psText,
+      `+${formatNum(ps)} ${C.RATE_LABEL}${storm ? `  STORM x${C.STORM_MULT} ${Math.ceil(this.stormLeft)}s` : ''}`,
+      storm ? COLOR.storm : COLOR.text,
+    );
+    const mult = activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, run.now());
+    updateLabel(
+      this.digText,
+      `DIG +${formatNum(this.digPower)}${mult > 1 ? `  FRENZY x${mult} ${Math.ceil(this.frenzyLeft)}s` : ''}`,
+      mult > 1 ? this.frenzyColor : COLOR.sand,
+    );
+    updateLabel(this.muteText, run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
     const q = C.QTY_MODES[this.qtyMode];
-    this.qtyText.setText(q < 0 ? 'BUY MAX' : `BUY x${q}`);
+    updateLabel(this.qtyText, q < 0 ? 'BUY MAX' : `BUY x${q}`);
     // The tutorial hint sits where banners appear; give way while one is showing.
     this.hintText.setVisible(this.s.clicks < 8 && this.banner.alpha < 0.05);
   }

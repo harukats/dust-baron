@@ -24,6 +24,7 @@ export class Preloader extends Phaser.Scene {
     this.load.image(TEX.logo, 'logo.png');
     this.load.image(TEX.deposit, 'deposit.png');
     this.load.image(TEX.cache, 'chrome-cache.png');
+    this.load.image(TEX.goldCache, 'gold-cache.png');
     this.load.image(TEX.pick, 'forge-pick.png');
     for (const g of GENS) this.load.image(g.key, `${g.key}.png`);
     this.load.audio(MUSIC, 'music.mp3');

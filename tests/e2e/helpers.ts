@@ -16,6 +16,14 @@ export type TestScene = Phaser.Scene & {
   startStorm(): void;
   stormIn: number;
   cacheIn: number;
+  spawnCache(): void;
+  collectCache(): void;
+  cachePickup: Phaser.GameObjects.Image | null;
+  cacheKind: 'chrome' | 'gold' | null;
+  cacheLabel: Phaser.GameObjects.Text | null;
+  cacheExpiresAtMs: number;
+  frenzyLeft: number;
+  digPower: number;
 };
 export async function fixture(page: Page, fields: Partial<State> = {}): Promise<void> {
   await page.addInitScript(
@@ -85,4 +93,44 @@ export async function texts(page: Page): Promise<string[]> {
       );
     return window.game.scene.getScenes(true).flatMap((scene) => collect(scene.children.list));
   });
+}
+
+/** 対象の同期呼び出しだけ乱数を固定し、演出や次フレームに漏らさない。 */
+export async function spawnCache(page: Page, kind: 'chrome' | 'gold'): Promise<void> {
+  await page.evaluate((kind) => {
+    const original = Math.random;
+    try {
+      Math.random = () => (kind === 'gold' ? 0.05 : 0.75);
+      (window.game.scene.getScene('Game') as TestScene).spawnCache();
+    } finally {
+      Math.random = original;
+    }
+  }, kind);
+  await nextFrame(page);
+}
+export async function collectCache(page: Page, roll = 0.75): Promise<void> {
+  await page.evaluate((roll) => {
+    const original = Math.random;
+    try {
+      Math.random = () => roll;
+      (window.game.scene.getScene('Game') as TestScene).collectCache();
+    } finally {
+      Math.random = original;
+    }
+  }, roll);
+  await nextFrame(page);
+}
+export async function freezeClock(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const run = window.game.registry.get('run');
+    const now = run.now();
+    run.now = () => now;
+    return now;
+  });
+}
+export async function setClock(page: Page, now: number): Promise<void> {
+  await page.evaluate((now) => {
+    window.game.registry.get('run').now = () => now;
+  }, now);
+  await nextFrame(page);
 }

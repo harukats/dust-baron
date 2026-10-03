@@ -1,0 +1,122 @@
+{
+  "commit": "40890e2f10b8fa2472a1a46542ae40748e51413b",
+  "sourceDiffSha256": "4e6751f563da77e4f1788b886a1653af821f0f09d6cdb503a2ca1821e18ab780",
+  "os": "6.18.40.1-microsoft-standard-WSL2",
+  "cpu": "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S",
+  "browser": "153.0.8010.12",
+  "dpr": 1,
+  "viewport": "1280x720",
+  "warmupMs": 10000,
+  "measurementMs": 60000,
+  "goldSupported": false,
+  "reports": [
+    {
+      "condition": "normal",
+      "trial": 1,
+      "fps": 42.27635773430822,
+      "responseP95": 5.4000000059604645,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 0,
+      "frenzyCalls": 0,
+      "spawnCalls": 0,
+      "collectCalls": 0
+    },
+    {
+      "condition": "normal",
+      "trial": 2,
+      "fps": 37.69147619674091,
+      "responseP95": 6.300000004470348,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 0,
+      "frenzyCalls": 0,
+      "spawnCalls": 0,
+      "collectCalls": 0
+    },
+    {
+      "condition": "normal",
+      "trial": 3,
+      "fps": 29.97951399876751,
+      "responseP95": 6.799999997019768,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 0,
+      "frenzyCalls": 0,
+      "spawnCalls": 0,
+      "collectCalls": 0
+    },
+    {
+      "condition": "chrome",
+      "trial": 1,
+      "fps": 30.142966641117074,
+      "responseP95": 7.5,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 5,
+      "frenzyCalls": 4,
+      "spawnCalls": 0,
+      "collectCalls": 0
+    },
+    {
+      "condition": "chrome",
+      "trial": 2,
+      "fps": 33.68405621339316,
+      "responseP95": 6.700000002980232,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 5,
+      "frenzyCalls": 4,
+      "spawnCalls": 0,
+      "collectCalls": 0
+    },
+    {
+      "condition": "chrome",
+      "trial": 3,
+      "fps": 35.00459008308626,
+      "responseP95": 6.5,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 5,
+      "frenzyCalls": 4,
+      "spawnCalls": 0,
+      "collectCalls": 0
+    },
+    {
+      "condition": "chrome-pickup",
+      "trial": 1,
+      "fps": 34.86196030202935,
+      "responseP95": 6.100000001490116,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 5,
+      "frenzyCalls": 4,
+      "spawnCalls": 7,
+      "collectCalls": 6
+    },
+    {
+      "condition": "chrome-pickup",
+      "trial": 2,
+      "fps": 34.87908971075359,
+      "responseP95": 6.300000004470348,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 5,
+      "frenzyCalls": 4,
+      "spawnCalls": 7,
+      "collectCalls": 6
+    },
+    {
+      "condition": "chrome-pickup",
+      "trial": 3,
+      "fps": 34.68073227841245,
+      "responseP95": 5.800000004470348,
+      "samples": 119,
+      "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "stormCalls": 5,
+      "frenzyCalls": 4,
+      "spawnCalls": 7,
+      "collectCalls": 6
+    }
+  ]
+}

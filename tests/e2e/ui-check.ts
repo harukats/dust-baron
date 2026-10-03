@@ -1,9 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium, expect } from '@playwright/test';
-import { clickGame, fixture, start, state, type TestScene, texts, title } from './helpers.ts';
-
-type UiScene = TestScene & { spawnCache(): void; collectCache(): void };
+import { clickGame, collectCache, fixture, spawnCache, start, state, type TestScene, texts, title } from './helpers.ts';
 
 await mkdir('test-results', { recursive: true });
 
@@ -30,24 +28,21 @@ try {
       ['jackpot', 0.25],
       ['cache-frenzy', 0.75],
     ] as const) {
-      await page.evaluate((random) => {
-        const scene = window.game.scene.getScene('Game') as UiScene;
-        scene.spawnCache();
-        const original = Math.random;
-        try {
-          Math.random = () => random;
-          scene.collectCache();
-        } finally {
-          Math.random = original;
-        }
-      }, random);
-      assert.ok((await texts(page)).every((text) => !/[\u3040-\u30ff\u3400-\u9fff]/.test(text)));
+      await spawnCache(page, 'chrome');
+      assert.equal(await page.evaluate(() => (window.game.scene.getScene('Game') as TestScene).cacheKind), 'chrome');
+      assert.ok((await texts(page)).includes('CHROME CACHE'));
+      await page.screenshot({ path: `test-results/chrome-cache-${width}.png` });
+      await collectCache(page, random);
+      const rewardTexts = await texts(page);
+      assert.ok(rewardTexts.includes(name === 'jackpot' ? 'CHROME JACKPOT!' : 'DIG FRENZY!'));
+      assert.ok(rewardTexts.every((text) => !/[\u3040-\u30ff\u3400-\u9fff]/.test(text)));
       await page.screenshot({ path: `test-results/${name}-${width}.png` });
     }
     await page.evaluate(() => (window.game.scene.getScene('Game') as TestScene).startStorm());
     await page.screenshot({ path: `test-results/storm-${width}.png` });
     await page.evaluate(() => {
       const run = window.game.registry.get('run');
+      run.frenzyMult = 7;
       run.frenzyEndsAtMs = run.now() + 20_000;
     });
     assert.ok((await texts(page)).some((text) => text.includes('FRENZY')));

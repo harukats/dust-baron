@@ -14,11 +14,15 @@ import {
   STORM_MULT,
 } from './config.ts';
 import {
+  activeDigMultiplier,
+  applyDigFrenzy,
   buyCrown,
   buyGen,
   buyPick,
+  cacheReward,
   clickPower,
   deserialize,
+  digGain,
   earn,
   formatNum,
   genCost,
@@ -29,6 +33,7 @@ import {
   offlineGain,
   perSecond,
   pickCost,
+  selectCacheKind,
   serialize,
 } from './economy.ts';
 
@@ -216,4 +221,60 @@ test('不正なroot・各整数・各フィールドを独立して復旧する'
   assert.equal(extreme.owned[0], 0);
   assert.equal(extreme.owned[1], 2);
   assert.ok(Number.isFinite(perSecond(extreme)));
+});
+
+test('キャッシュ種類の10%境界と不正な抽選値', () => {
+  for (const roll of [0, 0.099999]) assert.equal(selectCacheKind(roll), 'gold');
+  for (const roll of [0.1, 0.999999, NaN, Infinity, -Infinity, -0.1, 1, 2]) {
+    assert.equal(selectCacheKind(roll), 'chrome');
+  }
+});
+test('ゴールド確定報酬とクローム50%境界・不正値は報酬なし', () => {
+  const s = newState();
+  for (const roll of [0, 0.75, NaN, Infinity, -Infinity, -1, 1]) {
+    assert.deepEqual(cacheReward(s, 'gold', roll), { kind: 'frenzy', mult: 777 });
+  }
+  assert.deepEqual(cacheReward(s, 'chrome', 0.499999), { kind: 'credits', amount: 30 });
+  assert.deepEqual(cacheReward(s, 'chrome', 0.5), { kind: 'frenzy', mult: 7 });
+  for (const roll of [NaN, Infinity, -Infinity, -1, 1]) {
+    assert.deepEqual(cacheReward(s, 'chrome', roll), { kind: 'none' });
+  }
+  assert.deepEqual(s, newState());
+});
+test('採掘倍率の全取得順・期限境界・同倍率更新', () => {
+  for (const incoming of [7, 777] as const) {
+    assert.deepEqual(applyDigFrenzy(1, 0, incoming, 1000), { mult: incoming, endsAtMs: 21000 });
+    assert.deepEqual(applyDigFrenzy(incoming, 21000, incoming, 2000), { mult: incoming, endsAtMs: 22000 });
+  }
+  assert.deepEqual(applyDigFrenzy(7, 21000, 777, 2000), { mult: 777, endsAtMs: 22000 });
+  assert.deepEqual(applyDigFrenzy(777, 21000, 7, 2000), { mult: 777, endsAtMs: 21000 });
+  assert.deepEqual(applyDigFrenzy(777, 21000, 7, 21000), { mult: 7, endsAtMs: 41000 });
+  assert.equal(activeDigMultiplier(777, 21000, 20999), 777);
+  assert.equal(activeDigMultiplier(777, 21000, 21000), 1);
+  assert.equal(activeDigMultiplier(777, 21000, 21001), 1);
+  for (const value of [NaN, Infinity, -Infinity]) {
+    assert.equal(activeDigMultiplier(777, 21000, value), 1);
+    assert.equal(activeDigMultiplier(777, value, 1000), 1);
+    assert.deepEqual(applyDigFrenzy(777, 21000, 7, value), { mult: 777, endsAtMs: 21000 });
+  }
+  assert.equal(activeDigMultiplier(8, 21000, 1000), 1);
+});
+test('777倍は現在の通常採掘だけに適用し設備・装備変更を反映する', () => {
+  const s = newState();
+  assert.equal(digGain(s, 777, 21000, 1000), 777);
+  assert.equal(digGain(s, 777, 21000, 21000), 1);
+  s.pick = 3;
+  s.owned[0] = 25;
+  const base = clickPower(s, perSecond(s));
+  const ps = perSecond(s),
+    offline = offlineGain(s, 3600);
+  const jackpot = cacheReward(s, 'chrome', 0);
+  assert.equal(digGain(s, 777, 21000, 1000), base * 777);
+  assert.equal(perSecond(s), ps);
+  assert.equal(offlineGain(s, 3600), offline);
+  assert.deepEqual(cacheReward(s, 'chrome', 0), jackpot);
+  assert.equal(perSecond(s, true), ps * STORM_MULT);
+  s.pick++;
+  s.owned[0]++;
+  assert.equal(digGain(s, 777, 21000, 1000), clickPower(s, perSecond(s)) * 777);
 });

@@ -1,9 +1,15 @@
 // Pure economy logic — no Phaser, no DOM — tested by economy.test.ts under Node.
 import {
+  CACHE_JACKPOT_CLICKS,
+  CACHE_JACKPOT_S,
   CLICK_PS_FRAC,
   COST_GROWTH,
   CROWN_COST,
+  FRENZY_MULT,
+  FRENZY_S,
   GENS,
+  GOLD_CACHE_CHANCE,
+  GOLD_FRENZY_MULT,
   MILESTONES,
   OFFLINE_CAP_S,
   OFFLINE_MIN_S,
@@ -214,4 +220,45 @@ export function formatTime(sec: number): string {
     m = Math.floor((sec % 3600) / 60),
     s = Math.floor(sec % 60);
   return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+export type CacheKind = 'chrome' | 'gold';
+export type DigMultiplier = 1 | 7 | 777;
+export type CacheReward = { kind: 'none' } | { kind: 'credits'; amount: number } | { kind: 'frenzy'; mult: 7 | 777 };
+
+export function selectCacheKind(roll: number): CacheKind {
+  return Number.isFinite(roll) && roll >= 0 && roll < GOLD_CACHE_CHANCE ? 'gold' : 'chrome';
+}
+
+export function cacheReward(s: State, kind: CacheKind, roll: number): CacheReward {
+  if (kind === 'gold') return { kind: 'frenzy', mult: GOLD_FRENZY_MULT };
+  if (!Number.isFinite(roll) || roll < 0 || roll >= 1) return { kind: 'none' };
+  if (roll >= 0.5) return { kind: 'frenzy', mult: FRENZY_MULT };
+  const base = perSecond(s);
+  return { kind: 'credits', amount: Math.max(base * CACHE_JACKPOT_S, clickPower(s, base) * CACHE_JACKPOT_CLICKS) };
+}
+
+export function activeDigMultiplier(mult: number, endsAtMs: number, nowMs: number): DigMultiplier {
+  return Number.isFinite(nowMs) && Number.isFinite(endsAtMs) && nowMs < endsAtMs && (mult === 7 || mult === 777)
+    ? mult
+    : 1;
+}
+
+export function applyDigFrenzy(
+  mult: number,
+  endsAtMs: number,
+  incoming: number,
+  nowMs: number,
+): { mult: DigMultiplier; endsAtMs: number } {
+  const validMult = mult === 7 || mult === 777 ? mult : 1;
+  if (!Number.isFinite(nowMs) || !Number.isFinite(nowMs + FRENZY_S * 1000))
+    return { mult: validMult, endsAtMs: Number.isFinite(endsAtMs) ? endsAtMs : 0 };
+  const active = activeDigMultiplier(mult, endsAtMs, nowMs);
+  if (incoming !== 7 && incoming !== 777) return { mult: active, endsAtMs: active === 1 ? 0 : endsAtMs };
+  if (active > incoming) return { mult: active, endsAtMs };
+  return { mult: incoming, endsAtMs: nowMs + FRENZY_S * 1000 };
+}
+
+export function digGain(s: State, mult: number, endsAtMs: number, nowMs: number): number {
+  return clickPower(s, perSecond(s)) * activeDigMultiplier(mult, endsAtMs, nowMs);
 }
