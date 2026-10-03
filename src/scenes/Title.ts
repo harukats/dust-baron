@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import { version } from '../../package.json';
 import { applySoundSettings, ensureMusic } from '../audio.ts';
-import { COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
+import { COLOR, HEIGHT, TEX, TITLE_VERSION_UI, WIDTH } from '../config.ts';
 import { formatNum, hasProgress } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, loadSave, resetRun, run, settleRun, writeSave } from '../storage.ts';
@@ -105,6 +106,16 @@ export class Title extends Phaser.Scene {
       0.5,
     );
     this.tweens.add({ targets: hint, alpha: 0.3, duration: 700, yoyo: true, repeat: -1 });
+    label(
+      this,
+      WIDTH - TITLE_VERSION_UI.rightMargin,
+      HEIGHT - TITLE_VERSION_UI.bottomMargin,
+      `v${version}`,
+      TITLE_VERSION_UI.fontSize,
+      TITLE_VERSION_UI.color,
+      1,
+      1,
+    );
     this.input.keyboard?.once('keydown-SPACE', () => this.start(false));
     this.input.keyboard?.once('keydown-ENTER', () => this.start(false));
   }

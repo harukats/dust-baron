@@ -1,0 +1,155 @@
+[
+  {
+    "mode": "empty",
+    "width": 1280,
+    "height": 720,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 13
+  },
+  {
+    "mode": "empty",
+    "width": 960,
+    "height": 540,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 13
+  },
+  {
+    "mode": "empty",
+    "width": 720,
+    "height": 960,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 13
+  },
+  {
+    "mode": "saved",
+    "width": 1280,
+    "height": 720,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 17
+  },
+  {
+    "mode": "saved",
+    "width": 960,
+    "height": 540,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 17
+  },
+  {
+    "mode": "saved",
+    "width": 720,
+    "height": 960,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 17
+  },
+  {
+    "mode": "ephemeral",
+    "width": 1280,
+    "height": 720,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 16
+  },
+  {
+    "mode": "ephemeral",
+    "width": 960,
+    "height": 540,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 16
+  },
+  {
+    "mode": "ephemeral",
+    "width": 720,
+    "height": 960,
+    "bounds": {
+      "x": 968,
+      "y": 681,
+      "right": 1260,
+      "bottom": 704,
+      "width": 292
+    },
+    "font": "16px",
+    "scale": 1,
+    "interactive": false,
+    "overlap": [],
+    "count": 16
+  }
+]
