@@ -83,6 +83,8 @@ export function settleRun(now = run.now()): void {
   earn(run.state, result.gain);
   const nextTime = run.state.playTime + result.elapsedS;
   if (Number.isFinite(nextTime)) run.state.playTime = nextTime;
+  const nextReign = run.state.reignTime + result.elapsedS;
+  if (Number.isFinite(nextReign)) run.state.reignTime = nextReign;
   run.accountedAtMs = result.accountedAtMs;
 }
 export function writeSave(s: State, now = Date.now(), accountAt = run.now()): boolean {

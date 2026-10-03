@@ -12,12 +12,14 @@ import {
   buyPick,
   type CacheKind,
   cacheReward,
-  crownMult,
+  canAscend,
   digGain,
   earn,
   formatNum,
+  frenzySeconds,
   genCost,
   genOutput,
+  goldChance,
   isRevealed,
   isWon,
   maxAffordable,
@@ -25,9 +27,13 @@ import {
   nextMilestone,
   perSecond,
   pickCost,
+  productionMult,
   type State,
   selectCacheKind,
+  shardMult,
+  shardsForReign,
   shopWindow,
+  stormMult,
 } from '../economy.ts';
 import { ShopRow } from '../ShopRow.ts';
 import { Sfx } from '../sfx.ts';
@@ -61,6 +67,8 @@ export class Game extends Phaser.Scene {
   private hintText!: Phaser.GameObjects.Text;
   private muteText!: Phaser.GameObjects.Text;
   private qtyText!: Phaser.GameObjects.Text;
+  private reignBtn!: ReturnType<typeof plateButton>;
+  private shardText!: Phaser.GameObjects.Text;
   private pickRow!: ShopRow;
   private genRows: ShopRow[] = [];
   private shopTiers: number[] = []; // generator index shown in each genRows slot
@@ -93,7 +101,7 @@ export class Game extends Phaser.Scene {
     super('Game');
   }
 
-  create(data?: { fresh?: boolean }): void {
+  create(data?: { fresh?: boolean; reign?: number }): void {
     // Scene instances are reused on restart: reset every piece of per-run state here.
     this.genRows = [];
     this.shopTiers = [];
@@ -153,7 +161,14 @@ export class Game extends Phaser.Scene {
     this.refreshHud(this.ps);
     this.refreshShop();
     this.refreshCrew();
-    if (offline > 0)
+    if (data?.reign)
+      this.showBanner(
+        `REIGN ${this.s.reigns + 1} BEGINS`,
+        `+${data.reign} shards: production x${shardMult(this.s).toFixed(2)}`,
+        COLOR.hazard,
+        5000,
+      );
+    else if (offline > 0)
       this.showBanner('WHILE YOU WERE GONE', `your crew dug +${formatNum(offline)} ${C.CURRENCY}`, COLOR.hazard, 5000);
   }
 
@@ -222,6 +237,14 @@ export class Game extends Phaser.Scene {
       color: COLOR.text,
     });
     this.muteText = mute.text;
+
+    // Reign: opens the Reign scene (ascend + relics) once there is something to do there.
+    this.reignBtn = plateButton(this, x + w + 16, y, 212, 44, '', 18, () => this.openReign(), {
+      fill: COLOR.gold,
+      rim: COLOR.goldRim,
+      color: COLOR.goldBright,
+    });
+    this.shardText = label(this, x + w + 16 + 106, y + 62, '', 15, COLOR.sub, 0.5, 0);
   }
 
   private buildShop(): void {
@@ -430,7 +453,7 @@ export class Game extends Phaser.Scene {
     // The first and the last crown get the full Victory screen; the ones in between a banner.
     if (stage === 0 || isWon(this.s)) {
       this.scene.start('Victory', {
-        time: this.s.playTime,
+        time: this.s.reignTime,
         total: this.s.total,
         clicks: this.s.clicks,
         stage,
@@ -453,6 +476,12 @@ export class Game extends Phaser.Scene {
     this.sfx.play('click');
   }
 
+  private openReign(): void {
+    if (!canPlay()) return;
+    this.save();
+    this.scene.start('Reign');
+  }
+
   private toggleMute(): void {
     toggleSound(this);
   }
@@ -467,7 +496,7 @@ export class Game extends Phaser.Scene {
     if (!canPlay() || this.cachePickup) return;
     const now = run.now();
     if (!Number.isFinite(now) || !Number.isFinite(now + C.CACHE_LIFE_S * 1000)) return;
-    const kind = selectCacheKind(Math.random());
+    const kind = selectCacheKind(Math.random(), goldChance(this.s));
     const x = Math.random() < 0.5 ? rand(70, 190) : rand(MINE_W - 190, MINE_W - 60);
     const y = rand(300, 520);
     const c = fitImage(this.add.image(x, y, kind === 'gold' ? C.TEX.goldCache : C.TEX.cache), 96).setDepth(6);
@@ -526,7 +555,7 @@ export class Game extends Phaser.Scene {
     } else {
       const now = run.now();
       const old = activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, now);
-      const effect = applyDigFrenzy(run.frenzyMult, run.frenzyEndsAtMs, reward.mult, now);
+      const effect = applyDigFrenzy(run.frenzyMult, run.frenzyEndsAtMs, reward.mult, now, frenzySeconds(this.s));
       run.frenzyMult = effect.mult;
       run.frenzyEndsAtMs = effect.endsAtMs;
       this.frenzyLeft = Math.max(0, (effect.endsAtMs - now) / 1000);
@@ -548,7 +577,7 @@ export class Game extends Phaser.Scene {
     this.tweens.add({ targets: this.stormOverlay, fillAlpha: 0.3, duration: 1200 });
     this.cameras.main.shake(600, 0.004);
     this.sfx.play('storm');
-    this.showBanner('DUST STORM!', `turbines overcharged: production x${C.STORM_MULT}`, COLOR.storm, 3500);
+    this.showBanner('DUST STORM!', `turbines overcharged: production x${stormMult(this.s)}`, COLOR.storm, 3500);
   }
 
   private endStorm(): void {
@@ -599,7 +628,7 @@ export class Game extends Phaser.Scene {
     updateLabel(this.scrapText, formatNum(this.s.scrap));
     updateLabel(
       this.psText,
-      `+${formatNum(ps)} ${C.RATE_LABEL}${storm ? `  STORM x${C.STORM_MULT} ${Math.ceil(this.stormLeft)}s` : ''}`,
+      `+${formatNum(ps)} ${C.RATE_LABEL}${storm ? `  STORM x${stormMult(this.s)} ${Math.ceil(this.stormLeft)}s` : ''}`,
       storm ? COLOR.storm : COLOR.text,
     );
     const mult = activeDigMultiplier(run.frenzyMult, run.frenzyEndsAtMs, run.now());
@@ -609,6 +638,15 @@ export class Game extends Phaser.Scene {
       mult > 1 ? this.frenzyColor : COLOR.sand,
     );
     updateLabel(this.muteText, run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
+    const s = this.s;
+    const ascendable = canAscend(s);
+    const reignOpen = ascendable || s.reigns > 0 || s.shards > 0;
+    this.reignBtn.g.setVisible(reignOpen);
+    this.reignBtn.text.setVisible(reignOpen);
+    if (this.reignBtn.zone.input) this.reignBtn.zone.input.enabled = reignOpen;
+    updateLabel(this.reignBtn.text, ascendable ? `REIGN  +${shardsForReign(s.reignTotal)}` : 'RELICS');
+    this.shardText.setVisible(s.shardsEarned > 0);
+    updateLabel(this.shardText, `${formatNum(s.shards)} shards  +${Math.round((shardMult(s) - 1) * 100)}% output`);
     const q = C.QTY_MODES[this.qtyMode];
     updateLabel(this.qtyText, q < 0 ? 'BUY MAX' : `BUY x${q}`);
     // The tutorial hint sits where banners appear; give way while one is showing.
@@ -682,7 +720,7 @@ export class Game extends Phaser.Scene {
       const sub =
         owned > 0
           ? `x${owned}   +${formatNum(genOutput(s, i))} Credits/s${nm ? `   2x at ${nm}` : ''}`
-          : `${g.blurb}  (+${formatNum(g.rate * crownMult(s.crowns))} Credits/s)`;
+          : `${g.blurb}  (+${formatNum(g.rate * productionMult(s))} Credits/s)`;
       row.set({
         title: revealed ? `${g.name}${qty > 1 ? ` x${qty}` : ''}` : '??????',
         sub: revealed ? sub : 'keep digging to discover',

@@ -3,6 +3,7 @@ import { AUTOSAVE_MS, HEIGHT, SESSION_UI, WIDTH } from './config.ts';
 import { Boot } from './scenes/Boot.ts';
 import { Game } from './scenes/Game.ts';
 import { Preloader } from './scenes/Preloader.ts';
+import { Reign } from './scenes/Reign.ts';
 import { Title } from './scenes/Title.ts';
 import { Victory } from './scenes/Victory.ts';
 import { acquireSession, type PlaySession } from './session.ts';
@@ -19,7 +20,7 @@ const config: Phaser.Types.Core.GameConfig = {
     width: WIDTH,
     height: HEIGHT,
   },
-  scene: [Boot, Preloader, Title, Game, Victory],
+  scene: [Boot, Preloader, Title, Game, Reign, Victory],
 };
 // ライブ時間は単調増加時計に固定し、NTP補正で生産や一時効果を失わない。
 const clockEpoch = Date.now();

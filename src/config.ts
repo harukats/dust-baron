@@ -109,6 +109,40 @@ export const CROWNS: readonly CrownDef[] = [
 ];
 export const QTY_MODES: readonly number[] = [1, 10, -1]; // -1 = MAX
 
+// ── REIGN (prestige) ────────────────────────────────────────────────────────
+export const SHARD_DIVISOR = 1e7; // shards for a reign = floor(cbrt(credits earned that reign / SHARD_DIVISOR))
+export const SHARD_BONUS = 0.02; // each shard ever earned adds 2% to all production
+export interface RelicDef {
+  id: string;
+  name: string;
+  blurb: string;
+  costs: readonly number[]; // shard cost of each level, so costs.length is the max level
+}
+/** Bought with shards, kept across reigns. State.relics holds the level of each, in this order. */
+export const RELICS: readonly RelicDef[] = [
+  { id: 'storm_caller', name: 'STORM CALLER', blurb: 'storm production x2 > x2.5 > x3', costs: [10, 40] },
+  { id: 'gold_rush', name: 'GOLD RUSH', blurb: 'gold caches 10% > 12.5% > 15%', costs: [15, 60] },
+  { id: 'long_shift', name: 'LONG SHIFT', blurb: 'offline cap 2h > 4h > 6h > 8h', costs: [8, 25, 80] },
+  {
+    id: 'head_start',
+    name: 'HEAD START',
+    blurb: 'start each reign with 10 Scavengers per level',
+    costs: [5, 10, 20, 40, 80],
+  },
+  {
+    id: 'forge_memory',
+    name: 'FORGE MEMORY',
+    blurb: 'start each reign with Forge Pick +1 per level',
+    costs: [6, 15, 40, 100],
+  },
+  { id: 'frenzy_lord', name: 'FRENZY LORD', blurb: 'dig frenzies last +5s per level', costs: [20, 60, 150] },
+];
+export const RELIC_STORM_PER = 0.5; // storm multiplier added per level
+export const RELIC_GOLD_PER = 0.025; // gold cache chance added per level
+export const RELIC_OFFLINE_S = 2 * 60 * 60; // offline cap added per level
+export const RELIC_HEAD_START = 10; // Scavengers per level
+export const RELIC_FRENZY_S = 5; // frenzy seconds per level
+
 // ── EVENTS ──────────────────────────────────────────────────────────────────
 export const STORM_MIN_S = 70;
 export const STORM_MAX_S = 110;

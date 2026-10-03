@@ -12,34 +12,49 @@ import {
   OFFLINE_RATE,
   PICK_BASE_COST,
   QTY_MODES,
+  RELICS,
+  SHARD_BONUS,
   STORM_MULT,
 } from './config.ts';
 import {
   activeDigMultiplier,
   applyDigFrenzy,
+  ascend,
   buyCrown,
   buyGen,
   buyPick,
+  buyRelic,
   cacheReward,
+  canAscend,
   clickPower,
   crownMult,
   deserialize,
   digGain,
   earn,
   formatNum,
+  frenzySeconds,
   genCost,
+  goldChance,
   isRevealed,
   isUnlocked,
   isWon,
   maxAffordable,
   milestoneMult,
   newState,
+  offlineCapS,
   offlineGain,
   perSecond,
   pickCost,
+  productionMult,
+  relicCost,
+  relicLevel,
   selectCacheKind,
   serialize,
+  settleProduction,
+  shardMult,
+  shardsForReign,
   shopWindow,
+  stormMult,
 } from './economy.ts';
 
 test('content', () => {
@@ -185,9 +200,8 @@ test('formatting', () => {
   assert.equal(formatNum(CROWNS[0].cost), '250M');
 });
 
-/** A greedy bot (4 digs/s, best rate-per-cost buy, only what the shop window offers). Returns the second each crown was bought. */
-function playBot(maxCrowns: number, limitS: number): number[] {
-  const b = newState();
+/** A greedy bot (4 digs/s, best rate-per-cost buy, only what the shop window offers). Returns the second each crown was bought, counted from the bot's start (the state `b` is advanced in place). */
+function playBot(maxCrowns: number, limitS: number, b = newState()): number[] {
   const times: number[] = [];
   for (let t = 1; t <= limitS && b.crowns < maxCrowns; t++) {
     earn(b, perSecond(b) + clickPower(b, perSecond(b)) * 4);
@@ -350,4 +364,208 @@ test('777倍は現在の通常採掘だけに適用し設備・装備変更を�
   s.pick++;
   s.owned[0]++;
   assert.equal(digGain(s, 777, 21000, 1000), clickPower(s, perSecond(s)) * 777);
+});
+
+// ── Reign ───────────────────────────────────────────────────────────────────
+/** A state in the middle of a reign: two crowns, a crew, a pick and plenty earned. */
+function midReign(): ReturnType<typeof newState> {
+  const s = newState();
+  Object.assign(s, {
+    scrap: 5e11,
+    total: 2e12,
+    reignTotal: 1e12,
+    clicks: 50,
+    pick: 5,
+    crowns: 2,
+    playTime: 9000,
+    reignTime: 7000,
+  });
+  s.owned = GENS.map((_, i) => 10 + i);
+  return s;
+}
+
+test('shards for a reign: floor(cbrt(earned / 1e7))', () => {
+  for (const [earned, shards] of [
+    [0, 0],
+    [9_990_000, 0],
+    [1e7, 1],
+    [7.9e7, 1],
+    [8e7, 2],
+    [2.5e8, 2],
+    [1e12, 46],
+    [1e14, 215],
+    [-5, 0],
+    [Number.NaN, 0],
+    [Number.POSITIVE_INFINITY, 0],
+  ] as const)
+    assert.equal(shardsForReign(earned), shards, `${earned}`);
+});
+
+test('ascending needs a crown and at least one shard', () => {
+  const s = newState();
+  s.reignTotal = 1e12;
+  assert.ok(!canAscend(s), 'no crown yet');
+  s.crowns = 1;
+  assert.ok(canAscend(s));
+  s.reignTotal = 9_000_000;
+  assert.ok(!canAscend(s), 'not even one shard');
+  const before = serialize(s);
+  assert.equal(ascend(s), 0);
+  assert.equal(serialize(s), before, 'a refused ascend changes nothing');
+});
+
+test('ascend banks the shards, resets the reign and keeps the rest', () => {
+  const s = midReign();
+  s.relics[RELICS.findIndex((r) => r.id === 'storm_caller')] = 1;
+  s.shards = 3;
+  s.shardsEarned = 10;
+  const gain = ascend(s);
+  assert.equal(gain, 46);
+  assert.equal(s.shards, 49);
+  assert.equal(s.shardsEarned, 56);
+  assert.equal(s.reigns, 1);
+  // reset
+  assert.equal(s.scrap, 0);
+  assert.ok(s.owned.every((n) => n === 0));
+  assert.equal(s.pick, 0);
+  assert.equal(s.crowns, 0);
+  assert.equal(s.reignTotal, 0);
+  assert.equal(s.reignTime, 0);
+  // kept
+  assert.equal(s.total, 2e12);
+  assert.equal(s.clicks, 50);
+  assert.equal(s.playTime, 9000);
+  assert.equal(relicLevel(s, 'storm_caller'), 1);
+  assert.equal(perSecond(s), 0);
+  assert.ok(!canAscend(s), 'cannot ascend twice in a row');
+});
+
+test('shards and crowns both multiply production', () => {
+  const s = newState();
+  s.owned[0] = 10;
+  const base = perSecond(s);
+  s.shardsEarned = 50;
+  assert.equal(shardMult(s), 1 + 50 * SHARD_BONUS);
+  assert.equal(perSecond(s), base * 2);
+  s.crowns = 2;
+  assert.equal(productionMult(s), 4 * 2);
+  assert.equal(perSecond(s), base * 8);
+});
+
+test('relics: buying, costs, max level', () => {
+  const s = newState();
+  const storm = RELICS.findIndex((r) => r.id === 'storm_caller');
+  assert.equal(relicCost(s, storm), RELICS[storm].costs[0]);
+  assert.ok(!buyRelic(s, storm), 'no shards');
+  s.shards = 1000;
+  assert.ok(buyRelic(s, storm));
+  assert.equal(s.shards, 1000 - RELICS[storm].costs[0]);
+  assert.equal(relicCost(s, storm), RELICS[storm].costs[1]);
+  assert.ok(buyRelic(s, storm));
+  assert.equal(relicCost(s, storm), null, 'maxed');
+  const before = serialize(s);
+  assert.ok(!buyRelic(s, storm), 'cannot buy past the max');
+  for (const bad of [-1, 99, 1.5, Number.NaN]) assert.ok(!buyRelic(s, bad));
+  assert.equal(serialize(s), before);
+});
+
+test('every relic does what its blurb says', () => {
+  const s = newState();
+  const set = (id: string, level: number): void => {
+    s.relics[RELICS.findIndex((r) => r.id === id)] = level;
+  };
+  assert.deepEqual(
+    [stormMult(s), goldChance(s), frenzySeconds(s), offlineCapS(s)],
+    [STORM_MULT, 0.1, 20, OFFLINE_CAP_S],
+  );
+  set('storm_caller', 2);
+  assert.equal(stormMult(s), 3);
+  s.owned[0] = 10;
+  assert.equal(perSecond(s, true), perSecond(s) * 3);
+  set('gold_rush', 2);
+  assert.ok(Math.abs(goldChance(s) - 0.15) < 1e-9);
+  assert.equal(selectCacheKind(0.12, goldChance(s)), 'gold');
+  assert.equal(selectCacheKind(0.12), 'chrome', 'the default chance is unchanged');
+  set('frenzy_lord', 3);
+  assert.equal(frenzySeconds(s), 35);
+  assert.equal(applyDigFrenzy(1, 0, 7, 1000, frenzySeconds(s)).endsAtMs, 1000 + 35_000);
+  assert.equal(applyDigFrenzy(1, 0, 7, 1000).endsAtMs, 1000 + 20_000);
+  set('long_shift', 3);
+  assert.equal(offlineCapS(s), 4 * OFFLINE_CAP_S);
+  assert.equal(offlineGain(s, 10 * OFFLINE_CAP_S), perSecond(s) * 4 * OFFLINE_CAP_S * OFFLINE_RATE);
+  // a storm lasting 10 s of a 20 s stretch is paid at the relic multiplier
+  const r = settleProduction(s, 0, 20_000, 10_000);
+  assert.equal(r.gain, perSecond(s) * (20 + 10 * 2));
+});
+
+test('starting relics apply when a reign begins', () => {
+  const s = midReign();
+  s.relics[RELICS.findIndex((r) => r.id === 'head_start')] = 3;
+  s.relics[RELICS.findIndex((r) => r.id === 'forge_memory')] = 2;
+  ascend(s);
+  assert.equal(s.owned[0], 30);
+  assert.ok(s.owned.slice(1).every((n) => n === 0));
+  assert.equal(s.pick, 2);
+});
+
+test('earn counts towards the reign too, bad amounts count for nothing', () => {
+  const s = newState();
+  earn(s, 100);
+  assert.deepEqual([s.scrap, s.total, s.reignTotal], [100, 100, 100]);
+  const before = serialize(s);
+  earn(s, Number.NaN);
+  earn(s, -1);
+  earn(s, Number.MAX_VALUE * 2);
+  assert.equal(serialize(s), before);
+});
+
+test('reign fields survive a save, old saves count as the first reign, junk is repaired', () => {
+  const s = midReign();
+  s.reigns = 3;
+  s.shards = 7;
+  s.shardsEarned = 90;
+  s.relics = [2, 1, 0, 5, 0, 3];
+  assert.deepEqual(deserialize(serialize(s)), s);
+  // a save from before reigns
+  const old = deserialize('{"scrap":5,"total":1000,"crowns":1,"playTime":420}');
+  assert.ok(old);
+  assert.equal(old.reigns, 0);
+  assert.equal(old.reignTotal, 1000);
+  assert.equal(old.reignTime, 420);
+  assert.deepEqual(
+    old.relics,
+    RELICS.map(() => 0),
+  );
+  // junk
+  assert.equal(deserialize('{"total":10,"reignTotal":1e30}')?.reignTotal, 10, 'a reign cannot out-earn the lifetime');
+  assert.equal(deserialize('{"total":10,"reignTotal":"x"}')?.reignTotal, 0);
+  assert.equal(deserialize('{"shards":9,"shardsEarned":3}')?.shardsEarned, 9, 'unspent shards were earned');
+  assert.deepEqual(deserialize('{"relics":[99,-1,1.5,"x",null,2]}')?.relics, [2, 0, 0, 0, 0, 2]);
+  assert.deepEqual(
+    deserialize('{"relics":"nope"}')?.relics,
+    RELICS.map(() => 0),
+  );
+  for (const bad of [-1, 1.5, 'x', null])
+    assert.equal(deserialize(JSON.stringify({ reigns: bad, scrap: 1 }))?.reigns, 0);
+});
+
+test('pacing: a reign with shards and a head start is faster than the last', () => {
+  const b = newState();
+  const first = playBot(2, 12 * 3600, b);
+  assert.equal(first.length, 2, 'the bot owns two crowns');
+  assert.ok(canAscend(b));
+  const gain = ascend(b);
+  assert.ok(gain >= 1);
+  b.shards += 5; // the shards pay for Head Start level 1 (10 Scavengers each reign)
+  assert.ok(
+    buyRelic(
+      b,
+      RELICS.findIndex((r) => r.id === 'head_start'),
+    ),
+  );
+  const second = playBot(1, 12 * 3600, b);
+  console.log(
+    `  reign 1: crown 1 at ${(first[0] / 60).toFixed(1)} min, crown 2 at ${(first[1] / 60).toFixed(1)} min; reign 2 (${gain} shards): crown 1 at ${(second[0] / 60).toFixed(1)} min`,
+  );
+  assert.ok(second[0] < first[0], 'the second reign reaches its first crown sooner');
 });
