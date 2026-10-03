@@ -21,6 +21,8 @@ Dust Baron: a post-apocalyptic desert idle/incremental miner built with Phaser 4
 
 **Imports use explicit `.ts` extensions** (`allowImportingTsExtensions` + `erasableSyntaxOnly`). Keep this convention and the erasable TypeScript subset: no enums, namespaces or constructor parameter properties.
 
+**Crown chain.** `CROWNS` in `config.ts` is a finite list bought in order (`State.crowns` counts them). Each doubles all production (`crownMult`, applied in `perSecond`), crowns 1–4 also unlock one generator tier past `BASE_TIERS` (`isUnlocked`), and the last one ends the game (`isWon`). Old saves had a boolean `won`; `deserialize` maps it to `crowns = 1`. The shop always has `BASE_TIERS` generator slots showing a window of the newest unlocked tiers (`shopWindow`), so older tiers drop out of the shop but keep producing. The pacing tests simulate a greedy bot over the whole chain; if you change costs or rates, re-tune the crown costs so each gap stays at roughly 45–75 min.
+
 **Run state outlives scenes.** The live `State` is held in `run.state` (module-level, `storage.ts`), not on a scene. `Game.create()` loads the save (adding offline earnings) only when `run.state` is null. Title → Game → Victory → Game keeps the same run.
 
 **Phaser reuses scene instances on restart.** Class field initialisers do not run again, so `Game.create()` resets every per-run field by hand. Also never name a scene field after a built-in `Phaser.Scene` property. `cache` is the known trap: it shadows the CacheManager, which is why the shared chrome/gold pickup field is called `cachePickup`.

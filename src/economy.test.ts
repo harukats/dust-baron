@@ -3,8 +3,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import {
+  BASE_TIERS,
   COST_GROWTH,
-  CROWN_COST,
+  CROWNS,
   GENS,
   MILESTONES,
   OFFLINE_CAP_S,
@@ -21,12 +22,15 @@ import {
   buyPick,
   cacheReward,
   clickPower,
+  crownMult,
   deserialize,
   digGain,
   earn,
   formatNum,
   genCost,
   isRevealed,
+  isUnlocked,
+  isWon,
   maxAffordable,
   milestoneMult,
   newState,
@@ -35,10 +39,15 @@ import {
   pickCost,
   selectCacheKind,
   serialize,
+  shopWindow,
 } from './economy.ts';
 
 test('content', () => {
-  assert.equal(GENS.length, 6);
+  assert.equal(GENS.length, BASE_TIERS + CROWNS.length - 1, 'the last crown unlocks no tier');
+  assert.ok(
+    CROWNS.every((c, i) => i === 0 || c.cost > CROWNS[i - 1].cost),
+    'crowns get pricier',
+  );
   assert.ok(
     GENS.every((g, i) => i === 0 || (g.baseCost > GENS[i - 1].baseCost && g.rate > GENS[i - 1].rate)),
     'tiers get pricier and more productive',
@@ -97,13 +106,52 @@ test('discovery', () => {
   assert.ok(isRevealed(s, 3), 'owning a tier reveals the next');
 });
 
-test('win', () => {
+test('crown chain: bought in order, each once, the last one wins', () => {
   const w = newState();
-  assert.ok(!buyCrown(w) && !w.won, 'not early');
-  w.scrap = CROWN_COST;
-  assert.ok(buyCrown(w) && w.won && w.scrap === 0);
-  w.scrap = CROWN_COST * 2;
-  assert.ok(!buyCrown(w), 'not twice');
+  assert.ok(!buyCrown(w) && w.crowns === 0, 'not early');
+  CROWNS.forEach((c, i) => {
+    w.scrap = c.cost * 0.99;
+    assert.ok(!buyCrown(w) && w.crowns === i, `${c.name} needs its full price`);
+    w.scrap = c.cost;
+    assert.ok(buyCrown(w) && w.crowns === i + 1 && w.scrap === 0);
+    assert.equal(isWon(w), i === CROWNS.length - 1, 'only the last crown wins');
+  });
+  w.scrap = Number.MAX_VALUE;
+  assert.ok(!buyCrown(w) && w.crowns === CROWNS.length, 'chain is complete');
+});
+
+test('crowns multiply production and unlock one tier each', () => {
+  const s = newState();
+  s.owned[0] = 10;
+  const base = perSecond(s);
+  for (let k = 1; k <= CROWNS.length; k++) {
+    s.crowns = k;
+    assert.equal(perSecond(s), base * 2 ** k);
+    assert.equal(crownMult(k), 2 ** k);
+  }
+  assert.equal(crownMult(99), 2 ** CROWNS.length, 'extra crowns are ignored');
+  for (let c = 0; c <= 4; c++) {
+    s.crowns = c;
+    for (let i = 0; i < GENS.length; i++) assert.equal(isUnlocked(s, i), i < 6 + c, `tier ${i + 1} at ${c} crowns`);
+  }
+  s.crowns = 0;
+  s.total = 1e12;
+  s.owned[6] = 0;
+  s.owned[5] = 1;
+  assert.ok(!isRevealed(s, 6), 'a locked tier stays hidden however rich you are');
+  s.crowns = 1;
+  assert.ok(isRevealed(s, 6));
+});
+
+test('the shop shows the newest six unlocked tiers', () => {
+  const s = newState();
+  assert.deepEqual(shopWindow(s), [0, 1, 2, 3, 4, 5]);
+  s.crowns = 1;
+  assert.deepEqual(shopWindow(s), [1, 2, 3, 4, 5, 6]);
+  s.crowns = 4;
+  assert.deepEqual(shopWindow(s), [4, 5, 6, 7, 8, 9]);
+  s.crowns = 5;
+  assert.deepEqual(shopWindow(s), [4, 5, 6, 7, 8, 9], 'the last crown unlocks no tier');
 });
 
 test('save and offline', () => {
@@ -134,19 +182,19 @@ test('formatting', () => {
   assert.equal(formatNum(999), '999');
   assert.equal(formatNum(1234), '1.23K');
   assert.equal(formatNum(2_500_000), '2.50M');
-  assert.equal(formatNum(CROWN_COST), '250M');
+  assert.equal(formatNum(CROWNS[0].cost), '250M');
 });
 
-test('pacing: a greedy bot reaches the crown in 20 min – 3 h', () => {
+/** A greedy bot (4 digs/s, best rate-per-cost buy, only what the shop window offers). Returns the second each crown was bought. */
+function playBot(maxCrowns: number, limitS: number): number[] {
   const b = newState();
-  let t = 0;
-  while (!b.won && t < 6 * 3600) {
-    earn(b, perSecond(b) + clickPower(b, perSecond(b)) * 4); // 4 clicks/s
-    t++;
-    if (buyCrown(b)) break;
+  const times: number[] = [];
+  for (let t = 1; t <= limitS && b.crowns < maxCrowns; t++) {
+    earn(b, perSecond(b) + clickPower(b, perSecond(b)) * 4);
+    if (buyCrown(b)) times.push(t);
     let best = -1,
       bestEff = 0;
-    for (let i = 0; i < GENS.length; i++) {
+    for (const i of shopWindow(b)) {
       const eff = (GENS[i].rate * milestoneMult((b.owned[i] ?? 0) + 1)) / genCost(i, b.owned[i] ?? 0);
       if (eff > bestEff) {
         bestEff = eff;
@@ -158,8 +206,27 @@ test('pacing: a greedy bot reaches the crown in 20 min – 3 h', () => {
       /* keep buying */
     }
   }
-  console.log(`  pacing bot crowned after ${(t / 60).toFixed(1)} min`);
-  assert.ok(b.won && t <= 3 * 3600 && t >= 20 * 60);
+  return times;
+}
+
+test('pacing: a greedy bot reaches the first crown in 20 min – 3 h', () => {
+  const [first] = playBot(1, 6 * 3600);
+  console.log(`  pacing bot: first crown after ${(first / 60).toFixed(1)} min`);
+  assert.ok(first <= 3 * 3600 && first >= 20 * 60);
+});
+
+test('pacing: each later crown takes the bot 15 min – 2 h', () => {
+  const times = playBot(CROWNS.length, 72 * 3600);
+  times.forEach((t, i) => {
+    console.log(
+      `  ${CROWNS[i].name}: +${((t - (times[i - 1] ?? 0)) / 60).toFixed(1)} min (total ${(t / 60).toFixed(1)} min)`,
+    );
+  });
+  assert.equal(times.length, CROWNS.length, 'the bot finishes the chain');
+  times.forEach((t, i) => {
+    const gap = t - (times[i - 1] ?? 0);
+    if (i > 0) assert.ok(gap >= 15 * 60 && gap <= 2 * 3600, `${CROWNS[i].name} took ${(gap / 60).toFixed(1)} min`);
+  });
 });
 
 test('合計丸め305、MAX10個、不足304では変更しない', () => {
@@ -202,20 +269,26 @@ test('無効な購入と収入は正常な状態を壊さない', () => {
 });
 test('不正なroot・各整数・各フィールドを独立して復旧する', () => {
   for (const root of ['[]', 'null', '{}', '42', '{"unknown":1}']) assert.equal(deserialize(root), null);
-  const valid = { ...newState(), scrap: 123.5, total: 200, owned: [1, 2, 3, 4, 5, 6], pick: 3, won: true };
+  const valid = { ...newState(), scrap: 123.5, total: 200, owned: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], pick: 3, crowns: 2 };
   for (const key of ['scrap', 'total', 'clicks', 'pick', 'playTime', 'lastSave']) {
     for (const invalid of [-1, 'bad', null]) {
       const s = deserialize(JSON.stringify({ ...valid, [key]: invalid }));
       assert.ok(s);
       assert.deepEqual(s.owned, valid.owned);
-      assert.equal(s.won, true);
+      assert.equal(s.crowns, 2);
       if (key !== 'pick') assert.equal(s.pick, 3);
       assert.equal(s[key as keyof typeof s], key === 'total' ? valid.scrap : 0);
     }
   }
   assert.equal(deserialize('{"clicks":1.5,"pick":3.5,"owned":[1.5,2]}')?.pick, 0);
-  assert.deepEqual(deserialize('{"owned":[1.5,2]}')?.owned, [0, 2, 0, 0, 0, 0]);
+  assert.deepEqual(deserialize('{"owned":[1.5,2]}')?.owned, [0, 2, 0, 0, 0, 0, 0, 0, 0, 0]);
   assert.equal(deserialize('{"pick":1024,"won":true}')?.pick, 0);
+  assert.equal(deserialize('{"won":true}')?.crowns, 1, 'a pre-chain save that won has the first crown');
+  assert.equal(deserialize('{"won":false,"scrap":5}')?.crowns, 0);
+  assert.equal(deserialize('{"crowns":3,"won":true}')?.crowns, 3);
+  assert.equal(deserialize('{"crowns":99}')?.crowns, CROWNS.length, 'clamped to the chain');
+  for (const bad of [-1, 1.5, 'x', null])
+    assert.equal(deserialize(JSON.stringify({ crowns: bad, scrap: 1 }))?.crowns, 0);
   const extreme = deserialize('{"owned":[1e308,2],"pick":3}');
   assert.ok(extreme);
   assert.equal(extreme.owned[0], 0);

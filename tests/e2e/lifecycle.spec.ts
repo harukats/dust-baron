@@ -16,7 +16,7 @@ test('実際の履歴移動後に保存を復元し所有者1画面で再開', a
 });
 
 test('NEW RUNは明示的な再確認後だけ初期化', async ({ page }) => {
-  await fixture(page, { scrap: 0, total: 0, pick: 3, won: true });
+  await fixture(page, { scrap: 0, total: 0, pick: 3, crowns: 1 });
   await title(page);
   expect((await texts(page)).join(' ')).toContain('CONTINUE');
   await clickGame(page, 640, 625);
@@ -25,7 +25,7 @@ test('NEW RUNは明示的な再確認後だけ初期化', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.game.scene.isActive('Game'))).toBe(true);
   const s = await state(page);
   expect(s.pick).toBe(0);
-  expect(s.won).toBe(false);
+  expect(s.crowns).toBe(0);
   expect(s.scrap).toBe(0);
 });
 

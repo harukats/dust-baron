@@ -13,7 +13,7 @@ try {
       viewport: { width, height: (width * 720) / 1280 },
     });
     const page = await context.newPage();
-    await fixture(page, { total: 1e9, scrap: 1e9, owned: [25, 25, 25, 25, 25, 25], pick: 3, won: true });
+    await fixture(page, { total: 1e9, scrap: 1e9, owned: [25, 25, 25, 25, 25, 25], pick: 3, crowns: 1 });
     await title(page);
     await page.screenshot({ path: `test-results/title-${width}.png` });
     await start(page);

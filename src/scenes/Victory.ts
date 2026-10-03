@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { applySoundSettings, ensureMusic } from '../audio.ts';
-import { COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
+import { COLOR, CROWNS, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { formatNum, formatTime } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, run, settleRun, writeSave } from '../storage.ts';
@@ -10,9 +10,15 @@ export interface VictoryData {
   time: number;
   total: number;
   clicks: number;
+  /** Index into CROWNS of the crown just bought. */
+  stage?: number;
+  /** The last crown: the chain is complete. */
+  final?: boolean;
+  /** Name of the generator tier this crown unlocked, if any. */
+  unlocked?: string;
 }
 
-/** Victory: you bought the Dust Crown. Tap to keep digging — the run continues. */
+/** Victory: you bought the first or the last crown. Tap to keep digging — the run continues. */
 export class Victory extends Phaser.Scene {
   constructor() {
     super('Victory');
@@ -32,8 +38,30 @@ export class Victory extends Phaser.Scene {
     addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.45).setOrigin(0);
     fitImage(this.add.image(WIDTH / 2, HEIGHT * 0.2, TEX.logo), 360);
-    label(this, WIDTH / 2, HEIGHT * 0.42, 'THE WASTES ARE YOURS', 44, COLOR.hazard, 0.5, 0.5);
-    label(this, WIDTH / 2, HEIGHT * 0.42 + 46, 'You claimed the Dust Crown.', 22, COLOR.sand, 0.5, 0.5);
+    const crown = CROWNS[data.stage ?? 0] ?? CROWNS[0];
+    const final = data.final === true;
+    label(
+      this,
+      WIDTH / 2,
+      HEIGHT * 0.42,
+      final ? 'THE WASTES ARE ETERNAL' : 'THE WASTES ARE YOURS',
+      44,
+      COLOR.hazard,
+      0.5,
+      0.5,
+    );
+    label(this, WIDTH / 2, HEIGHT * 0.42 + 46, `You claimed the ${crown.name}.`, 22, COLOR.sand, 0.5, 0.5);
+    if (data.unlocked)
+      label(
+        this,
+        WIDTH / 2,
+        HEIGHT * 0.42 + 76,
+        `Production x${crown.mult}. ${data.unlocked} unlocked - your oldest crews keep working.`,
+        18,
+        COLOR.sub,
+        0.5,
+        0.5,
+      );
 
     const pw = 480,
       ph = 150,
@@ -41,7 +69,7 @@ export class Victory extends Phaser.Scene {
       py = HEIGHT * 0.56;
     drawPlate(this.add.graphics(), px, py, pw, ph);
     const rows: [string, string][] = [
-      ['TIME TO THE CROWN', formatTime(data.time ?? 0)],
+      [`TIME TO THE ${crown.name.toUpperCase()}`, formatTime(data.time ?? 0)],
       ['CREDITS EARNED (LIFETIME)', formatNum(data.total ?? 0)],
       ['DIGS BY HAND', formatNum(data.clicks ?? 0)],
     ];

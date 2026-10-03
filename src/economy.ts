@@ -1,10 +1,11 @@
 // Pure economy logic — no Phaser, no DOM — tested by economy.test.ts under Node.
 import {
+  BASE_TIERS,
   CACHE_JACKPOT_CLICKS,
   CACHE_JACKPOT_S,
   CLICK_PS_FRAC,
   COST_GROWTH,
-  CROWN_COST,
+  CROWNS,
   FRENZY_MULT,
   FRENZY_S,
   GENS,
@@ -25,13 +26,13 @@ export interface State {
   clicks: number;
   owned: number[]; // per generator
   pick: number; // Forge Pick level
-  won: boolean;
+  crowns: number; // crowns bought, in order (see CROWNS)
   playTime: number; // seconds
   lastSave: number; // epoch ms
 }
 
 export function newState(): State {
-  return { scrap: 0, total: 0, clicks: 0, owned: GENS.map(() => 0), pick: 0, won: false, playTime: 0, lastSave: 0 };
+  return { scrap: 0, total: 0, clicks: 0, owned: GENS.map(() => 0), pick: 0, crowns: 0, playTime: 0, lastSave: 0 };
 }
 
 /** Cost of buying `qty` more of generator `i` when `owned` are already owned. */
@@ -72,9 +73,22 @@ export function genRate(i: number, owned: number): number {
   return GENS[i].rate * owned * milestoneMult(owned);
 }
 
+/** Permanent production multiplier from the crowns bought so far. */
+export function crownMult(crowns: number): number {
+  let m = 1;
+  for (let i = 0; i < Math.min(crowns, CROWNS.length); i++) m *= CROWNS[i].mult;
+  return m;
+}
+
+/** What generator `i` really produces per second for this run (crown multiplier included). */
+export function genOutput(s: State, i: number): number {
+  return genRate(i, s.owned[i] ?? 0) * crownMult(s.crowns);
+}
+
 export function perSecond(s: State, storm = false): number {
   let sum = 0;
   for (let i = 0; i < GENS.length; i++) sum += genRate(i, s.owned[i] ?? 0);
+  sum *= crownMult(s.crowns);
   return storm ? sum * STORM_MULT : sum;
 }
 
@@ -125,16 +139,42 @@ export function buyPick(s: State): boolean {
   return true;
 }
 
+/** True once the last crown is bought. */
+export function isWon(s: State): boolean {
+  return s.crowns >= CROWNS.length;
+}
+
+/** The next crown to buy, or null when the chain is complete. */
+export function nextCrown(s: State): (typeof CROWNS)[number] | null {
+  return CROWNS[s.crowns] ?? null;
+}
+
+/** Buy the next crown in the chain. */
 export function buyCrown(s: State): boolean {
-  if (s.won || s.scrap < CROWN_COST) return false;
-  s.scrap -= CROWN_COST;
-  s.won = true;
+  const c = nextCrown(s);
+  if (!c || s.scrap < c.cost) return false;
+  s.scrap -= c.cost;
+  s.crowns++;
   return true;
 }
 
-/** A generator row is revealed once the previous tier is owned or you're close to affording it. */
+/** Tiers past BASE_TIERS are unlocked one per crown. */
+export function isUnlocked(s: State, i: number): boolean {
+  return i < BASE_TIERS || s.crowns >= i - BASE_TIERS + 1;
+}
+
+/** A generator row is revealed once it is unlocked and the previous tier is owned or you're close to affording it. */
 export function isRevealed(s: State, i: number): boolean {
+  if (!isUnlocked(s, i)) return false;
   return i === 0 || (s.owned[i - 1] ?? 0) > 0 || s.total >= GENS[i].baseCost * 0.6;
+}
+
+/** Generator indices shown in the shop: the newest `rows` unlocked tiers. Older ones keep producing. */
+export function shopWindow(s: State, rows = BASE_TIERS): number[] {
+  let unlocked = 0;
+  while (unlocked < GENS.length && isUnlocked(s, unlocked)) unlocked++;
+  const start = Math.max(0, unlocked - rows);
+  return Array.from({ length: unlocked - start }, (_, k) => start + k);
 }
 
 /** Scrap earned while away for `secondsAway`. */
@@ -164,7 +204,7 @@ export function settleProduction(
 }
 
 export function hasProgress(s: State): boolean {
-  return s.scrap > 0 || s.total > 0 || s.pick > 0 || s.won || s.owned.some((n) => n > 0);
+  return s.scrap > 0 || s.total > 0 || s.pick > 0 || s.crowns > 0 || s.owned.some((n) => n > 0);
 }
 
 export function serialize(s: State): string {
@@ -177,8 +217,9 @@ export function deserialize(json: string | null): State | null {
   try {
     const parsed: unknown = JSON.parse(json);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    const o = parsed as Partial<State>;
-    if (!Object.keys(newState()).some((key) => Object.hasOwn(o, key))) return null;
+    const o = parsed as Partial<State> & { won?: unknown };
+    // `won` is the pre-crown-chain spelling of `crowns`.
+    if (![...Object.keys(newState()), 'won'].some((key) => Object.hasOwn(o, key))) return null;
     const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
     const integer = (v: unknown): number => (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : 0);
     const s = newState();
@@ -186,7 +227,8 @@ export function deserialize(json: string | null): State | null {
     s.total = Math.max(num(o.total), s.scrap);
     s.clicks = integer(o.clicks);
     s.pick = integer(o.pick);
-    s.won = o.won === true;
+    // Saves from before the crown chain only have a boolean `won`.
+    s.crowns = Math.min(integer(o.crowns) || (o.won === true ? 1 : 0), CROWNS.length);
     s.playTime = num(o.playTime);
     s.lastSave = num(o.lastSave);
     if (Array.isArray(o.owned))

@@ -33,7 +33,7 @@ test('強化・Dust Crownは一度だけ、達成後も同じ進行', async ({ p
   await page.keyboard.press('Space');
   await expect.poll(() => page.evaluate(() => window.game.scene.isActive('Game'))).toBe(true);
   const s = await state(page);
-  expect(s.won).toBe(true);
+  expect(s.crowns).toBe(1);
   expect(s.pick).toBe(1);
   expect(s.owned[0]).toBe(1);
 });
