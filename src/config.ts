@@ -31,6 +31,15 @@ export const PIXEL_TEXTURES: readonly string[] = [
   'sandcrawler',
   'salvage-yard',
   'storm-refinery',
+  'hover-hauler',
+  'dune-leviathan',
+  'sky-dredger',
+  'orbital-scrapper',
+  'crown-1',
+  'crown-2',
+  'crown-3',
+  'crown-4',
+  'crown-5',
 ];
 
 // ── ECONOMY ─────────────────────────────────────────────────────────────────
@@ -54,13 +63,50 @@ export const GENS: readonly GenDef[] = [
     baseCost: 2_000_000,
     rate: 8_000,
   },
+  // Tiers 7+ are unlocked by the crowns (see CROWNS).
+  { key: 'hover-hauler', name: 'HOVER HAULER', blurb: 'Skims the dunes at speed', baseCost: 30_000_000, rate: 60_000 },
+  {
+    key: 'dune-leviathan',
+    name: 'DUNE LEVIATHAN',
+    blurb: 'Swallows whole ridges',
+    baseCost: 400_000_000,
+    rate: 480_000,
+  },
+  {
+    key: 'sky-dredger',
+    name: 'SKY DREDGER',
+    blurb: 'Fishes junk out of the clouds',
+    baseCost: 6_000_000_000,
+    rate: 4_000_000,
+  },
+  {
+    key: 'orbital-scrapper',
+    name: 'ORBITAL SCRAPPER',
+    blurb: 'Strips the old satellites',
+    baseCost: 90_000_000_000,
+    rate: 35_000_000,
+  },
 ];
+export const BASE_TIERS = 6; // generators available from the start; tier i >= 6 needs i - 5 crowns
 export const COST_GROWTH = 1.15; // each copy costs 15% more
 export const MILESTONES: readonly number[] = [25, 50, 100, 200, 300, 400, 500]; // each doubles that tier
 export const PICK_BASE_COST = 50; // Forge Pick upgrade
 export const PICK_COST_GROWTH = 8;
 export const CLICK_PS_FRAC = 0.01; // each pick level adds 1% of scrap/s to a dig
-export const CROWN_COST = 250_000_000; // the Dust Crown — the win purchase
+export interface CrownDef {
+  name: string;
+  key: string; // icon texture (public/assets/<key>.png)
+  cost: number;
+  mult: number; // permanent multiplier on all production
+}
+/** The crown chain: buy them in order. Each multiplies production; crowns 1–4 also unlock the next tier; the last one ends the game. */
+export const CROWNS: readonly CrownDef[] = [
+  { name: 'Dust Crown', key: 'crown-1', cost: 250_000_000, mult: 2 },
+  { name: 'Sandstorm Throne', key: 'crown-2', cost: 2_500_000_000, mult: 2 },
+  { name: 'Wasteland Citadel', key: 'crown-3', cost: 40_000_000_000, mult: 2 },
+  { name: 'Orbital Scrapyard', key: 'crown-4', cost: 700_000_000_000, mult: 2 },
+  { name: 'Crown of Ages', key: 'crown-5', cost: 30_000_000_000_000, mult: 2 },
+];
 export const QTY_MODES: readonly number[] = [1, 10, -1]; // -1 = MAX
 
 // ── EVENTS ──────────────────────────────────────────────────────────────────

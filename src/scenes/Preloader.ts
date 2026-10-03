@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLOR, GENS, HEIGHT, MUSIC, PIXEL_TEXTURES, TEX, WIDTH } from '../config.ts';
+import { COLOR, CROWNS, GENS, HEIGHT, MUSIC, PIXEL_TEXTURES, TEX, WIDTH } from '../config.ts';
 import { label } from '../ui.ts';
 
 /** Preloader: load every asset in public/assets/ behind a progress bar. */
@@ -27,6 +27,7 @@ export class Preloader extends Phaser.Scene {
     this.load.image(TEX.goldCache, 'gold-cache.png');
     this.load.image(TEX.pick, 'forge-pick.png');
     for (const g of GENS) this.load.image(g.key, `${g.key}.png`);
+    for (const c of CROWNS) this.load.image(c.key, `${c.key}.png`);
     this.load.audio(MUSIC, 'music.mp3');
   }
 

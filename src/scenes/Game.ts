@@ -1,6 +1,6 @@
 // The mine. Click the ore deposit to dig scrap, spend it in the Supply Depot on
 // crew and machines that dig for you, ride out dust storms (production ×2) and
-// grab chrome and gold caches. Buying the Dust Crown wins.
+// grab chrome and gold caches. Buy the crowns in order — the last one wins.
 import Phaser from 'phaser';
 import { applySoundSettings, ensureMusic, toggleSound } from '../audio.ts';
 import * as C from '../config.ts';
@@ -12,18 +12,22 @@ import {
   buyPick,
   type CacheKind,
   cacheReward,
+  crownMult,
   digGain,
   earn,
   formatNum,
   genCost,
-  genRate,
+  genOutput,
   isRevealed,
+  isWon,
   maxAffordable,
+  nextCrown,
   nextMilestone,
   perSecond,
   pickCost,
   type State,
   selectCacheKind,
+  shopWindow,
 } from '../economy.ts';
 import { ShopRow } from '../ShopRow.ts';
 import { Sfx } from '../sfx.ts';
@@ -59,6 +63,7 @@ export class Game extends Phaser.Scene {
   private qtyText!: Phaser.GameObjects.Text;
   private pickRow!: ShopRow;
   private genRows: ShopRow[] = [];
+  private shopTiers: number[] = []; // generator index shown in each genRows slot
   private crownRow!: ShopRow;
   private crew!: Phaser.GameObjects.Container;
   private crewSig = '';
@@ -91,6 +96,7 @@ export class Game extends Phaser.Scene {
   create(data?: { fresh?: boolean }): void {
     // Scene instances are reused on restart: reset every piece of per-run state here.
     this.genRows = [];
+    this.shopTiers = [];
     this.crewSig = '';
     this.cachePickup = null;
     this.cacheKind = null;
@@ -243,14 +249,18 @@ export class Game extends Phaser.Scene {
     const y = (r: number): number => top + r * (rh + gap);
 
     this.pickRow = new ShopRow(this, rx, y(0), rw, rh, C.TEX.pick, () => this.buy(() => buyPick(this.s)));
-    C.GENS.forEach((g, i) => {
+    // One slot per base tier; each slot shows a window of the newest unlocked generators (see shopWindow).
+    for (let k = 0; k < C.BASE_TIERS; k++) {
       this.genRows.push(
-        new ShopRow(this, rx, y(1 + i), rw, rh, g.key, () =>
-          this.buy(() => buyGen(this.s, i, C.QTY_MODES[this.qtyMode]) > 0),
+        new ShopRow(this, rx, y(1 + k), rw, rh, C.GENS[k].key, () =>
+          this.buy(() => {
+            const i = this.shopTiers[k];
+            return i !== undefined && buyGen(this.s, i, C.QTY_MODES[this.qtyMode]) > 0;
+          }),
         ),
       );
-    });
-    this.crownRow = new ShopRow(this, rx, y(7), rw, rh, C.TEX.logo, () => this.buyTheCrown(), true);
+    }
+    this.crownRow = new ShopRow(this, rx, y(7), rw, rh, C.CROWNS[0].key, () => this.buyTheCrown(), true);
   }
 
   private buildEffects(): void {
@@ -414,7 +424,28 @@ export class Game extends Phaser.Scene {
       return;
     }
     writeSave(this.s);
-    this.scene.start('Victory', { time: this.s.playTime, total: this.s.total, clicks: this.s.clicks });
+    const stage = this.s.crowns - 1;
+    const crown = C.CROWNS[stage];
+    const unlocked = C.GENS[C.BASE_TIERS + stage]?.name;
+    // The first and the last crown get the full Victory screen; the ones in between a banner.
+    if (stage === 0 || isWon(this.s)) {
+      this.scene.start('Victory', {
+        time: this.s.playTime,
+        total: this.s.total,
+        clicks: this.s.clicks,
+        stage,
+        final: isWon(this.s),
+        unlocked,
+      });
+      return;
+    }
+    this.sfx.play('fanfare');
+    this.showBanner(
+      crown.name.toUpperCase(),
+      `production x${crown.mult}${unlocked ? `  -  ${unlocked} unlocked` : ''}`,
+      COLOR.hazard,
+      5000,
+    );
   }
 
   private cycleQty(): void {
@@ -594,8 +625,8 @@ export class Game extends Phaser.Scene {
     this.crew.removeAll(true);
     const types = owned.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
     if (types.length === 0) return;
-    const icon = 64,
-      gap = 78,
+    const gap = Math.min(78, Math.floor((MINE_W - 40) / types.length)),
+      icon = Math.min(64, gap - 4),
       y = DEP.y + DEP.size * 0.5 + 72;
     const g = this.add.graphics();
     drawPlate(
@@ -637,7 +668,12 @@ export class Game extends Phaser.Scene {
     });
 
     const q = C.QTY_MODES[this.qtyMode];
-    C.GENS.forEach((g, i) => {
+    this.shopTiers = shopWindow(s, C.BASE_TIERS);
+    this.genRows.forEach((row, k) => {
+      const i = this.shopTiers[k];
+      if (i === undefined) return;
+      const g = C.GENS[i];
+      row.setIcon(g.key);
       const owned = s.owned[i] ?? 0;
       const qty = q < 0 ? Math.max(1, maxAffordable(i, owned, s.scrap)) : q;
       const cost = genCost(i, owned, qty);
@@ -645,9 +681,9 @@ export class Game extends Phaser.Scene {
       const nm = nextMilestone(owned);
       const sub =
         owned > 0
-          ? `x${owned}   +${formatNum(genRate(i, owned))} Credits/s${nm ? `   2x at ${nm}` : ''}`
-          : `${g.blurb}  (+${formatNum(g.rate)} Credits/s)`;
-      this.genRows[i].set({
+          ? `x${owned}   +${formatNum(genOutput(s, i))} Credits/s${nm ? `   2x at ${nm}` : ''}`
+          : `${g.blurb}  (+${formatNum(g.rate * crownMult(s.crowns))} Credits/s)`;
+      row.set({
         title: revealed ? `${g.name}${qty > 1 ? ` x${qty}` : ''}` : '??????',
         sub: revealed ? sub : 'keep digging to discover',
         cost: formatNum(cost),
@@ -656,15 +692,23 @@ export class Game extends Phaser.Scene {
       });
     });
 
+    const crown = nextCrown(s);
+    this.crownRow.setIcon((crown ?? C.CROWNS[C.CROWNS.length - 1]).key);
     this.crownRow.set(
-      s.won
-        ? { title: 'DUST CROWN - CLAIMED', sub: '', cost: '', affordable: false, done: true }
-        : {
-            title: 'DUST CROWN',
+      crown
+        ? {
+            title: crown.name.toUpperCase(),
             sub: '',
-            cost: formatNum(C.CROWN_COST),
-            affordable: s.scrap >= C.CROWN_COST,
-            progress: Math.min(1, s.scrap / C.CROWN_COST),
+            cost: formatNum(crown.cost),
+            affordable: s.scrap >= crown.cost,
+            progress: Math.min(1, s.scrap / crown.cost),
+          }
+        : {
+            title: `${C.CROWNS[C.CROWNS.length - 1].name.toUpperCase()} - CLAIMED`,
+            sub: '',
+            cost: '',
+            affordable: false,
+            done: true,
           },
     );
   }

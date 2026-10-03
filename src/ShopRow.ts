@@ -26,6 +26,8 @@ export class ShopRow {
   private hover = false;
   private sig = '';
   private last: RowView | null = null;
+  private iconKey: string;
+  private iconBox: number;
 
   constructor(
     scene: Phaser.Scene,
@@ -41,6 +43,8 @@ export class ShopRow {
     this.crown = crown;
     this.g = scene.add.graphics();
     const ic = crown ? h * 1.3 : h - 10;
+    this.iconKey = iconKey;
+    this.iconBox = ic;
     this.icon = fitImage(scene.add.image(x + 8 + (crown ? ic * 0.5 : ic / 2), y + h / 2, iconKey), ic);
     const tx = x + 16 + (crown ? this.icon.displayWidth : ic);
     this.title = label(scene, tx, y + h * 0.13, '', 22);
@@ -57,6 +61,14 @@ export class ShopRow {
       this.hover = false;
       this.redraw();
     });
+  }
+
+  /** Show another texture (the shop window slides over the generators). Cheap when unchanged. */
+  setIcon(key: string): void {
+    if (key === this.iconKey) return;
+    this.iconKey = key;
+    this.icon.setTexture(key);
+    fitImage(this.icon, this.iconBox);
   }
 
   set(v: RowView): void {
