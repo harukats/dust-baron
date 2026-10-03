@@ -18,8 +18,9 @@ export function label(
   color: number = COLOR.text,
   originX = 0,
   originY = 0,
+  maxWidth?: number,
 ): Phaser.GameObjects.Text {
-  return scene.add
+  const text = scene.add
     .text(x, y, str, {
       fontFamily: FONT,
       fontSize: `${size}px`,
@@ -30,6 +31,7 @@ export function label(
       resolution: 2,
     })
     .setOrigin(originX, originY);
+  return maxWidth !== undefined ? text.setWordWrapWidth(maxWidth) : text;
 }
 
 /** A riveted rust-metal plate. */

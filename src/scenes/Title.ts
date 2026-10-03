@@ -115,6 +115,7 @@ export class Title extends Phaser.Scene {
       TITLE_VERSION_UI.color,
       1,
       1,
+      TITLE_VERSION_UI.maxWidth,
     );
     this.input.keyboard?.once('keydown-SPACE', () => this.start(false));
     this.input.keyboard?.once('keydown-ENTER', () => this.start(false));
