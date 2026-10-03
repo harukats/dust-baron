@@ -120,3 +120,11 @@ export const COLOR = {
   goldRim: 0x9a7a2a,
   goldBright: 0xffd45c,
 } as const;
+
+export const TITLE_VERSION_UI = {
+  rightMargin: 20,
+  bottomMargin: 16,
+  fontSize: 16,
+  color: COLOR.sub,
+  maxWidth: 480,
+} as const;
