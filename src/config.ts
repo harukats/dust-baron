@@ -35,6 +35,11 @@ export const PIXEL_TEXTURES: readonly string[] = [
   'dune-leviathan',
   'sky-dredger',
   'orbital-scrapper',
+  'crown-1',
+  'crown-2',
+  'crown-3',
+  'crown-4',
+  'crown-5',
 ];
 
 // ── ECONOMY ─────────────────────────────────────────────────────────────────
@@ -90,16 +95,17 @@ export const PICK_COST_GROWTH = 8;
 export const CLICK_PS_FRAC = 0.01; // each pick level adds 1% of scrap/s to a dig
 export interface CrownDef {
   name: string;
+  key: string; // icon texture (public/assets/<key>.png)
   cost: number;
   mult: number; // permanent multiplier on all production
 }
 /** The crown chain: buy them in order. Each multiplies production; crowns 1–4 also unlock the next tier; the last one ends the game. */
 export const CROWNS: readonly CrownDef[] = [
-  { name: 'Dust Crown', cost: 250_000_000, mult: 2 },
-  { name: 'Sandstorm Throne', cost: 2_500_000_000, mult: 2 },
-  { name: 'Wasteland Citadel', cost: 40_000_000_000, mult: 2 },
-  { name: 'Orbital Scrapyard', cost: 700_000_000_000, mult: 2 },
-  { name: 'Crown of Ages', cost: 30_000_000_000_000, mult: 2 },
+  { name: 'Dust Crown', key: 'crown-1', cost: 250_000_000, mult: 2 },
+  { name: 'Sandstorm Throne', key: 'crown-2', cost: 2_500_000_000, mult: 2 },
+  { name: 'Wasteland Citadel', key: 'crown-3', cost: 40_000_000_000, mult: 2 },
+  { name: 'Orbital Scrapyard', key: 'crown-4', cost: 700_000_000_000, mult: 2 },
+  { name: 'Crown of Ages', key: 'crown-5', cost: 30_000_000_000_000, mult: 2 },
 ];
 export const QTY_MODES: readonly number[] = [1, 10, -1]; // -1 = MAX
 

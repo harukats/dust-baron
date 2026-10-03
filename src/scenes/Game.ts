@@ -260,7 +260,7 @@ export class Game extends Phaser.Scene {
         ),
       );
     }
-    this.crownRow = new ShopRow(this, rx, y(7), rw, rh, C.TEX.logo, () => this.buyTheCrown(), true);
+    this.crownRow = new ShopRow(this, rx, y(7), rw, rh, C.CROWNS[0].key, () => this.buyTheCrown(), true);
   }
 
   private buildEffects(): void {
@@ -693,6 +693,7 @@ export class Game extends Phaser.Scene {
     });
 
     const crown = nextCrown(s);
+    this.crownRow.setIcon((crown ?? C.CROWNS[C.CROWNS.length - 1]).key);
     this.crownRow.set(
       crown
         ? {

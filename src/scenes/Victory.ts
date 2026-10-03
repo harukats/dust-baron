@@ -51,6 +51,7 @@ export class Victory extends Phaser.Scene {
       0.5,
     );
     label(this, WIDTH / 2, HEIGHT * 0.42 + 46, `You claimed the ${crown.name}.`, 22, COLOR.sand, 0.5, 0.5);
+    for (const side of [-1, 1]) fitImage(this.add.image(WIDTH / 2 + side * 420, HEIGHT * 0.42 + 20, crown.key), 104);
     if (data.unlocked)
       label(
         this,
