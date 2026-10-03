@@ -1,7 +1,7 @@
 # 転生(Reign)と実績 設計書
 
 王冠チェーン(`CROWNS`、PR #17)の次の目標として、転生(Reign)と実績を追加する。実績は将来 Steam の実績にもつなげる。
-状態: 設計確定、未実装。
+状態: 設計確定。PR 1(Reign コア)は実装済み。実績(PR 2)と Steam(PR 3)は未実装。
 
 ## 決定事項
 
@@ -39,7 +39,7 @@
 
 ### State の追加(`SAVE_KEY` は v1 のまま)
 `reigns`、`shards`、`shardsEarned`、`relics: number[]`、`reignTime`、`reignTotal`、
-`stats: { storms, caches, golds, jackpots, fastestCrown }`。
+`stats: { storms, caches, golds, jackpots, fastestCrown }`(`stats` は実績に使うので PR 2 で追加する。PR 1 は他の6つだけ)。
 
 - `deserialize` は欠けたフィールドを 0 / 空で補う(既存の方針どおり)。
 - `playTime` は累計のまま残し、Victory の「TIME TO THE …」は `reignTime` で表示する。
