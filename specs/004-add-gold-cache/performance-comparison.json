@@ -1,0 +1,62 @@
+{
+  "comparison": "medians of 3 trials",
+  "renderer": "SwiftShader (software)",
+  "allPass": true,
+  "conditions": [
+    {
+      "condition": "normal",
+      "baseline": "normal",
+      "beforeFps": 37.69147619674091,
+      "afterFps": 42.114420564234486,
+      "fpsChangePercent": 11.73460106578692,
+      "beforeInputP95Ms": 6.300000004470348,
+      "afterInputP95Ms": 6.100000001490116,
+      "inputIncreaseMs": -0.20000000298023224,
+      "pass": true
+    },
+    {
+      "condition": "chrome",
+      "baseline": "chrome",
+      "beforeFps": 33.68405621339316,
+      "afterFps": 35.26934316054369,
+      "fpsChangePercent": 4.706342184882706,
+      "beforeInputP95Ms": 6.700000002980232,
+      "afterInputP95Ms": 6.299999997019768,
+      "inputIncreaseMs": -0.4000000059604645,
+      "pass": true
+    },
+    {
+      "condition": "chrome-pickup",
+      "baseline": "chrome-pickup",
+      "beforeFps": 34.86196030202935,
+      "afterFps": 34.828979710869476,
+      "fpsChangePercent": -0.0946033753528086,
+      "beforeInputP95Ms": 6.100000001490116,
+      "afterInputP95Ms": 6,
+      "inputIncreaseMs": -0.10000000149011612,
+      "pass": true
+    },
+    {
+      "condition": "gold",
+      "baseline": "chrome",
+      "beforeFps": 33.68405621339316,
+      "afterFps": 35.45183598194667,
+      "fpsChangePercent": 5.2481202303973795,
+      "beforeInputP95Ms": 6.700000002980232,
+      "afterInputP95Ms": 6.399999998509884,
+      "inputIncreaseMs": -0.30000000447034836,
+      "pass": true
+    },
+    {
+      "condition": "gold-pickup",
+      "baseline": "chrome-pickup",
+      "beforeFps": 34.86196030202935,
+      "afterFps": 35.00768136178468,
+      "fpsChangePercent": 0.4179944515249723,
+      "beforeInputP95Ms": 6.100000001490116,
+      "afterInputP95Ms": 5.5,
+      "inputIncreaseMs": -0.6000000014901161,
+      "pass": true
+    }
+  ]
+}

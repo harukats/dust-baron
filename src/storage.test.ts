@@ -47,6 +47,8 @@ beforeEach(() => {
   run.settings.soundEnabled = true;
   run.accountedAtMs = 0;
   run.stormEndsAtMs = 0;
+  run.frenzyMult = 1;
+  run.frenzyEndsAtMs = 0;
 });
 afterEach(() => {
   Reflect.deleteProperty(globalThis, 'localStorage');
@@ -234,3 +236,35 @@ for (const failure of ['property', 'read', 'write']) {
     assert.equal(run.state, null);
   });
 }
+
+test('goldの一時効果は保存せず、既存進行を再読込・新規ランで保持または解除する', () => {
+  initializeRun(1000, 1000);
+  const s = liveState();
+  s.scrap = 777;
+  s.total = 900;
+  s.pick = 3;
+  s.owned[0] = 4;
+  run.frenzyMult = 777;
+  run.frenzyEndsAtMs = 21000;
+  writeSave(s, 1000, 1000);
+  const saved = JSON.parse(data.get(SAVE_KEY) ?? '{}');
+  assert.equal('frenzyMult' in saved, false);
+  assert.equal('frenzyEndsAtMs' in saved, false);
+  const before = calls.length;
+  assert.equal(initializeRun(2000, 2000), 0);
+  assert.equal(run.state, s);
+  assert.equal(calls.length, before);
+  run.state = null;
+  initializeRun(1000, 1000);
+  assert.equal(liveState().scrap, 777);
+  assert.equal(liveState().pick, 3);
+  assert.equal(liveState().owned[0], 4);
+  assert.equal(run.frenzyMult, 1);
+  assert.equal(run.frenzyEndsAtMs, 0);
+  run.frenzyMult = 777;
+  run.frenzyEndsAtMs = 21000;
+  resetRun(1000);
+  assert.equal(liveState().scrap, 0);
+  assert.equal(run.frenzyMult, 1);
+  assert.equal(run.frenzyEndsAtMs, 0);
+});

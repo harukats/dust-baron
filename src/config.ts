@@ -10,6 +10,7 @@ export const TEX = {
   logo: 'logo',
   deposit: 'deposit',
   cache: 'chrome-cache',
+  goldCache: 'gold-cache',
   pick: 'forge-pick',
   spark: 'spark', // generated in Boot
   streak: 'streak', // generated in Boot
@@ -22,6 +23,7 @@ export const PIXEL_TEXTURES: readonly string[] = [
   'logo',
   'deposit',
   'chrome-cache',
+  'gold-cache',
   'forge-pick',
   'scavenger',
   'dune-miner',
@@ -73,6 +75,8 @@ export const CACHE_JACKPOT_S = 60; // jackpot = 60 s of production…
 export const CACHE_JACKPOT_CLICKS = 30; // …or 30 digs, whichever is bigger
 export const FRENZY_S = 20;
 export const FRENZY_MULT = 7;
+export const GOLD_CACHE_CHANCE = 0.1;
+export const GOLD_FRENZY_MULT = 777;
 
 // ── SAVE ────────────────────────────────────────────────────────────────────
 export const SAVE_KEY = 'dust-baron-save-v1';
@@ -114,4 +118,5 @@ export const COLOR = {
   win: 0x2c3a2a,
   gold: 0x3b2a10,
   goldRim: 0x9a7a2a,
+  goldBright: 0xffd45c,
 } as const;
