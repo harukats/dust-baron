@@ -105,6 +105,11 @@ const onPageHide = (): void => {
 const onPageShow = (event: PageTransitionEvent): void => {
   if (event.persisted) void boot();
 };
+// 右クリックは使わない。キャンバス外(FITの余白)でも出ないようdocumentで止める。devは検証用に残す。
+const onContextMenu = (event: Event): void => {
+  if (!import.meta.env.DEV) event.preventDefault();
+};
+document.addEventListener('contextmenu', onContextMenu);
 document.addEventListener('visibilitychange', onVisibility);
 window.addEventListener('pagehide', onPageHide);
 window.addEventListener('pageshow', onPageShow);
@@ -114,6 +119,7 @@ if (import.meta.hot) {
   import.meta.hot.dispose(async () => {
     disposed = true;
     clearInterval(autosave);
+    document.removeEventListener('contextmenu', onContextMenu);
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('pagehide', onPageHide);
     window.removeEventListener('pageshow', onPageShow);
