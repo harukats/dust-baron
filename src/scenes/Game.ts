@@ -104,6 +104,9 @@ export class Game extends Phaser.Scene {
   }
 
   create(data?: { fresh?: boolean; reign?: number }): void {
+    // start() without data keeps the previous data, so take it once and clear it, or the REIGN banner
+    // (and a fresh reset) would repeat on every return from Reign or Victory.
+    this.sys.settings.data = {};
     // Scene instances are reused on restart: reset every piece of per-run state here.
     this.genRows = [];
     this.shopTiers = [];
