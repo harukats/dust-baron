@@ -164,8 +164,10 @@ export function initializeRun(now = Date.now(), liveAt = now): number {
   if (saved && saved.lastSave > 0) {
     const awayS = (now - saved.lastSave) / 1000;
     if (Number.isFinite(awayS) && awayS > 0) {
-      run.state.playTime += awayS;
-      run.state.reignTime += awayS;
+      const nextPlayTime = run.state.playTime + awayS;
+      if (Number.isFinite(nextPlayTime)) run.state.playTime = nextPlayTime;
+      const nextReignTime = run.state.reignTime + awayS;
+      if (Number.isFinite(nextReignTime)) run.state.reignTime = nextReignTime;
     }
   }
   run.offline = gain;
