@@ -107,6 +107,9 @@ test('離席29/30/7200/7201秒の境界と即時保存、一度だけ', () => {
     const gain = initializeRun(now);
     assert.equal(gain, seconds < 30 ? 0 : Math.min(seconds, 7200));
     assert.equal(liveState().scrap, gain);
+    // the whole time away counts as play time, even beyond the offline cap
+    assert.equal(liveState().playTime, seconds);
+    assert.equal(liveState().reignTime, seconds);
     assert.equal(JSON.parse(data.get(SAVE_KEY) ?? '{}').lastSave, now);
     assert.equal(initializeRun(now + 1000), 0);
   }

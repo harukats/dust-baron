@@ -159,6 +159,15 @@ export function initializeRun(now = Date.now(), liveAt = now): number {
   run.frenzyMult = 1;
   const gain = saved && saved.lastSave > 0 ? offlineGain(saved, (now - saved.lastSave) / 1000) : 0;
   earn(run.state, gain);
+  // Time away counts as play time (the full wall-clock gap, not just the part the offline cap pays for),
+  // otherwise closing the game would freeze the reign clock that the speed achievements read.
+  if (saved && saved.lastSave > 0) {
+    const awayS = (now - saved.lastSave) / 1000;
+    if (Number.isFinite(awayS) && awayS > 0) {
+      run.state.playTime += awayS;
+      run.state.reignTime += awayS;
+    }
+  }
   run.offline = gain;
   if (run.mode === 'owned') writeSave(run.state, now, liveAt);
   return gain;
