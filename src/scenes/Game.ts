@@ -36,6 +36,7 @@ import {
   stormMult,
 } from '../economy.ts';
 import { ShopRow } from '../ShopRow.ts';
+import { openSettings } from '../settings.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, grantAchievements, initializeRun, resetRun, run, settleRun, writeSave } from '../storage.ts';
 import { AchievementToasts } from '../Toasts.ts';
@@ -66,7 +67,6 @@ export class Game extends Phaser.Scene {
   private psText!: Phaser.GameObjects.Text;
   private digText!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
-  private muteText!: Phaser.GameObjects.Text;
   private qtyText!: Phaser.GameObjects.Text;
   private toasts!: AchievementToasts;
   private reignBtn!: ReturnType<typeof plateButton>;
@@ -150,8 +150,12 @@ export class Game extends Phaser.Scene {
     const onDig = (e: KeyboardEvent): void => {
       if (!e.repeat) this.dig(DEP.x + rand(-40, 40), DEP.y + rand(-30, 30));
     };
-    const onQty = (): void => this.cycleQty();
-    const onMute = (): void => this.toggleMute();
+    const onQty = (e: KeyboardEvent): void => {
+      if (!e.repeat) this.cycleQty();
+    };
+    const onMute = (e: KeyboardEvent): void => {
+      if (!e.repeat) this.toggleMute();
+    };
     kb?.on('keydown-SPACE', onDig);
     kb?.on('keydown-Q', onQty);
     kb?.on('keydown-M', onMute);
@@ -237,12 +241,11 @@ export class Game extends Phaser.Scene {
     this.scrapText = label(this, x + 18, y + 34, '0', 46, COLOR.hazard);
     this.psText = label(this, x + 18, y + 90, '', 18);
     this.digText = label(this, x + w - 18, y + 14, '', 18, COLOR.sand, 1, 0);
-    const mute = plateButton(this, x + w - 116, y + h - 44, 100, 30, '', 14, () => this.toggleMute(), {
+    plateButton(this, x + w - 116, y + h - 44, 100, 30, 'SETTINGS', 14, () => openSettings(this), {
       fill: COLOR.rustMid,
       rim: COLOR.chromeDim,
       color: COLOR.text,
     });
-    this.muteText = mute.text;
 
     // Reign: opens the Reign scene (ascend + relics) once there is something to do there.
     this.reignBtn = plateButton(this, x + w + 16, y, 212, 44, '', 18, () => this.openReign(), {
@@ -653,7 +656,6 @@ export class Game extends Phaser.Scene {
       `DIG +${formatNum(this.digPower)}${mult > 1 ? `  FRENZY x${mult} ${Math.ceil(this.frenzyLeft)}s` : ''}`,
       mult > 1 ? this.frenzyColor : COLOR.sand,
     );
-    updateLabel(this.muteText, run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
     const s = this.s;
     const ascendable = canAscend(s);
     const reignOpen = ascendable || s.reigns > 0 || s.shards > 0;

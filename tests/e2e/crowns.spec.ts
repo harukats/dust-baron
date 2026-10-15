@@ -37,7 +37,11 @@ test('王冠が足りなければ買えず、最終王冠だけエンディン�
   await clickGame(page, CROWN_ROW.x, CROWN_ROW.y);
   await expect.poll(() => page.evaluate(() => window.game.scene.isActive('Victory'))).toBe(true);
   expect((await texts(page)).join(' ')).toContain('THE WASTES ARE ETERNAL');
-  await page.waitForTimeout(1000);
+  await expect
+    .poll(() =>
+      page.evaluate(() => window.game.scene.getScene('Victory').input.keyboard?.listenerCount('keydown-SPACE')),
+    )
+    .toBe(1);
   await page.keyboard.press('Space');
   await expect.poll(() => page.evaluate(() => window.game.scene.isActive('Game'))).toBe(true);
   expect((await state(page)).crowns).toBe(CROWNS.length);

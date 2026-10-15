@@ -251,3 +251,21 @@ export const TITLE_VERSION_UI = {
   color: COLOR.sub,
   maxWidth: 480,
 } as const;
+
+// Settingsは固定の論理座標に配置し、FITで画面へ収める。
+export const SETTINGS_UI = {
+  title: 'SETTINGS',
+  close: 'CLOSE',
+  returnTitle: 'RETURN TO TITLE',
+  unavailable: 'FULLSCREEN: UNAVAILABLE',
+  failed: 'FULLSCREEN CHANGE FAILED',
+  x: 360,
+  y: 72,
+  width: 560,
+  height: 576,
+  buttonX: 400,
+  buttonWidth: 480,
+  buttonHeight: 58,
+  firstButtonY: 154,
+  buttonGap: 88,
+} as const;

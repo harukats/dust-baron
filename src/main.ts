@@ -5,6 +5,7 @@ import { Boot } from './scenes/Boot.ts';
 import { Game } from './scenes/Game.ts';
 import { Preloader } from './scenes/Preloader.ts';
 import { Reign } from './scenes/Reign.ts';
+import { Settings } from './scenes/Settings.ts';
 import { Title } from './scenes/Title.ts';
 import { Victory } from './scenes/Victory.ts';
 import { acquireSession, type PlaySession } from './session.ts';
@@ -25,10 +26,11 @@ const config: Phaser.Types.Core.GameConfig = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     parent: 'game-container',
+    fullscreenTarget: 'game-container',
     width: WIDTH,
     height: HEIGHT,
   },
-  scene: [Boot, Preloader, Title, Achievements, Game, Reign, Victory],
+  scene: [Boot, Preloader, Title, Achievements, Game, Reign, Victory, Settings],
 };
 // ライブ時間は単調増加時計に固定し、NTP補正で生産や一時効果を失わない。
 const clockEpoch = Date.now();

@@ -87,7 +87,7 @@ try {
           muteLabel: scene.children.list
             .filter((child) => child.type === 'Text')
             .map((child) => (child as Phaser.GameObjects.Text).text)
-            .filter((text) => text.startsWith('SOUND:')),
+            .filter((text) => text === 'SETTINGS'),
         };
       }, sceneName);
       reports.push({ sceneName, trial, ...metrics });

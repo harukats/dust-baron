@@ -44,7 +44,11 @@ test('HMRで旧ゲーム停止とロック解放後に一つだけ再起動', as
     await expect.poll(() => page.evaluate(() => window.game?.scene.isActive('Title')), { timeout: 30_000 }).toBe(true);
     expect(await page.locator('canvas').count()).toBe(1);
     expect(await page.evaluate(() => window.game.sound.mute)).toBe(true);
-    expect(await texts(page)).toContain('SOUND:OFF');
+    expect(await texts(page)).toContain('SETTINGS');
+    expect(await page.evaluate(() => window.game.registry.get('run').settings)).toEqual({
+      bgmEnabled: false,
+      sfxEnabled: false,
+    });
     const held = await page.evaluate(async () => (await navigator.locks.query()).held);
     expect(held?.filter((lock) => lock.name === 'dust-baron-save-v1:play').length).toBe(1);
   } finally {

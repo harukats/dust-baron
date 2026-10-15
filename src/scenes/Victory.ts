@@ -5,7 +5,7 @@ import { formatNum, formatTime } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, run, settleRun, writeSave } from '../storage.ts';
 import { AchievementToasts } from '../Toasts.ts';
-import { addBackdrop, addSoundControl, addTemporaryNotice, drawPlate, fitImage, label } from '../ui.ts';
+import { addBackdrop, addSettingsControl, addTemporaryNotice, drawPlate, fitImage, label } from '../ui.ts';
 
 export interface VictoryData {
   time: number;
@@ -37,7 +37,7 @@ export class Victory extends Phaser.Scene {
       if (run.state) writeSave(run.state);
     });
     addBackdrop(this, TEX.background);
-    addSoundControl(this);
+    addSettingsControl(this);
     addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.45).setOrigin(0);
     fitImage(this.add.image(WIDTH / 2, HEIGHT * 0.2, TEX.logo), 360);
@@ -120,7 +120,8 @@ export class Victory extends Phaser.Scene {
 
     // A short grace period so the click that bought the crown doesn't skip this screen.
     this.time.delayedCall(800, () => {
-      const onSpace = () => {
+      const onSpace = (event?: KeyboardEvent) => {
+        if (event?.repeat) return;
         if (!canPlay()) return;
         this.input.off(Phaser.Input.Events.POINTER_DOWN, onPointerDown);
         this.input.keyboard?.off('keydown-SPACE', onSpace);

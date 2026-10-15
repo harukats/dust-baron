@@ -13,7 +13,7 @@ import {
 } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, run, settleRun, writeSave } from '../storage.ts';
-import { addBackdrop, addSoundControl, addTemporaryNotice, drawPlate, label, plateButton } from '../ui.ts';
+import { addBackdrop, addSettingsControl, addTemporaryNotice, drawPlate, label, plateButton } from '../ui.ts';
 
 /** Reign: spend shards on relics, or give up the run for a new reign (and more shards). */
 export class Reign extends Phaser.Scene {
@@ -37,7 +37,7 @@ export class Reign extends Phaser.Scene {
       if (run.state) writeSave(run.state);
     });
     addBackdrop(this, TEX.background);
-    addSoundControl(this);
+    addSettingsControl(this);
     addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.55).setOrigin(0);
     label(this, WIDTH / 2, 50, 'THE NEXT REIGN', 40, COLOR.hazard, 0.5, 0.5);
