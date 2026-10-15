@@ -11,3 +11,7 @@ build/
 Thumbs.db
 playwright-report/
 test-results/
+
+*.rs.bk
+*.rlib
+*.profraw
