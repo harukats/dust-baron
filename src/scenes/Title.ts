@@ -5,7 +5,7 @@ import { ACHIEVEMENTS, COLOR, HEIGHT, TEX, TITLE_VERSION_UI, WIDTH } from '../co
 import { formatNum, hasProgress } from '../economy.ts';
 import { Sfx } from '../sfx.ts';
 import { canPlay, loadSave, resetRun, run, settleRun, writeSave } from '../storage.ts';
-import { addBackdrop, addSoundControl, addTemporaryNotice, fitImage, label, plateButton } from '../ui.ts';
+import { addBackdrop, addSettingsControl, addTemporaryNotice, fitImage, label, plateButton } from '../ui.ts';
 
 /** Title: the logo over the wasteland. CONTINUE a save, or wipe it with a confirmed NEW RUN. */
 export class Title extends Phaser.Scene {
@@ -27,7 +27,7 @@ export class Title extends Phaser.Scene {
     const hasSave = !!saved && hasProgress(saved);
 
     addBackdrop(this, TEX.background);
-    addSoundControl(this);
+    addSettingsControl(this);
     addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.25).setOrigin(0);
     const unlocked = ACHIEVEMENTS.filter((a) => run.achievements[a.id]).length;
@@ -122,8 +122,15 @@ export class Title extends Phaser.Scene {
       1,
       TITLE_VERSION_UI.maxWidth,
     );
-    this.input.keyboard?.once('keydown-SPACE', () => this.start(false));
-    this.input.keyboard?.once('keydown-ENTER', () => this.start(false));
+    const start = (event: KeyboardEvent): void => {
+      if (!event.repeat) this.start(false);
+    };
+    this.input.keyboard?.on('keydown-SPACE', start);
+    this.input.keyboard?.on('keydown-ENTER', start);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.off('keydown-SPACE', start);
+      this.input.keyboard?.off('keydown-ENTER', start);
+    });
   }
 
   private start(fresh: boolean): void {

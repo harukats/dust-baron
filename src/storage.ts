@@ -14,7 +14,8 @@ import { platform } from './platform.ts';
 import type { SessionMode } from './session.ts';
 
 export interface SoundSettings {
-  soundEnabled: boolean;
+  bgmEnabled: boolean;
+  sfxEnabled: boolean;
 }
 
 /** ライブ進行はシーンから独立する。副作用は呼び出し時にだけ実行する。 */
@@ -31,7 +32,7 @@ export const run: {
   now: () => number;
 } = {
   state: null,
-  settings: { soundEnabled: DEFAULT_SOUND_ENABLED },
+  settings: { bgmEnabled: DEFAULT_SOUND_ENABLED, sfxEnabled: DEFAULT_SOUND_ENABLED },
   achievements: {},
   mode: 'acquiring',
   accountedAtMs: 0,
@@ -49,11 +50,14 @@ export function canPlay(): boolean {
 export function initializeSoundSettings(): void {
   // 一時プレイの同一ページ内再起動ではライブ値を保持する。
   if (run.mode !== 'owned') return;
-  run.settings.soundEnabled = DEFAULT_SOUND_ENABLED;
+  run.settings = { bgmEnabled: DEFAULT_SOUND_ENABLED, sfxEnabled: DEFAULT_SOUND_ENABLED };
   try {
     const value: unknown = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? 'null');
-    if (value && typeof value === 'object' && !Array.isArray(value) && 'soundEnabled' in value) {
-      if (typeof value.soundEnabled === 'boolean') run.settings.soundEnabled = value.soundEnabled;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      const settings = value as Record<string, unknown>;
+      const legacy = typeof settings.soundEnabled === 'boolean' ? settings.soundEnabled : DEFAULT_SOUND_ENABLED;
+      run.settings.bgmEnabled = typeof settings.bgmEnabled === 'boolean' ? settings.bgmEnabled : legacy;
+      run.settings.sfxEnabled = typeof settings.sfxEnabled === 'boolean' ? settings.sfxEnabled : legacy;
     }
   } catch {
     // 読み取り不能・不正設定でも既定値でプレイを続ける。
@@ -61,7 +65,16 @@ export function initializeSoundSettings(): void {
 }
 
 export function setSoundEnabled(enabled: boolean): void {
-  if (canPlay()) run.settings.soundEnabled = enabled;
+  setBgmEnabled(enabled);
+  setSfxEnabled(enabled);
+}
+
+export function setBgmEnabled(enabled: boolean): void {
+  if (canPlay()) run.settings.bgmEnabled = enabled;
+}
+
+export function setSfxEnabled(enabled: boolean): void {
+  if (canPlay()) run.settings.sfxEnabled = enabled;
 }
 
 export function writeSoundSettings(): boolean {

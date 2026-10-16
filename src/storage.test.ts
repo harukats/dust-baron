@@ -12,7 +12,10 @@ import {
   loadSave,
   resetRun,
   run,
+  setBgmEnabled,
+  setSfxEnabled,
   setSoundEnabled,
+  settleRun,
   writeAchievements,
   writeSave,
   writeSoundSettings,
@@ -48,7 +51,7 @@ beforeEach(() => {
   run.now = () => 1000;
   run.mode = 'owned';
   run.state = null;
-  run.settings.soundEnabled = true;
+  run.settings = { bgmEnabled: true, sfxEnabled: true };
   run.achievements = {};
   run.accountedAtMs = 0;
   run.stormEndsAtMs = 0;
@@ -150,14 +153,14 @@ test('音声設定はbooleanのみ復元し不正・欠落はON', () => {
   for (const raw of [null, '{', 'null', '[]', 'false', '0', '{}', '{"soundEnabled":"false"}', '{"soundEnabled":0}']) {
     if (raw === null) data.delete(SETTINGS_KEY);
     else data.set(SETTINGS_KEY, raw);
-    run.settings.soundEnabled = false;
+    run.settings.bgmEnabled = false;
     initializeSoundSettings();
-    assert.equal(run.settings.soundEnabled, true, String(raw));
+    assert.equal(run.settings.bgmEnabled, true, String(raw));
   }
   for (const enabled of [true, false]) {
     data.set(SETTINGS_KEY, JSON.stringify({ soundEnabled: enabled, extra: 'ignored' }));
     initializeSoundSettings();
-    assert.equal(run.settings.soundEnabled, enabled);
+    assert.equal(run.settings.bgmEnabled, enabled);
   }
 });
 
@@ -175,9 +178,9 @@ test('タイトル相当の設定保存は進行と離席基準に触れず即�
   assert.equal(run.state, null);
   assert.equal(run.accountedAtMs, 123);
   assert.equal(run.offline, 45);
-  run.settings.soundEnabled = true;
+  run.settings.bgmEnabled = true;
   initializeSoundSettings();
-  assert.equal(run.settings.soundEnabled, false);
+  assert.equal(run.settings.bgmEnabled, false);
   assert.equal(initializeRun(1_060_000), 60);
   assert.equal(initializeRun(1_060_001), 0);
 });
@@ -193,10 +196,10 @@ test('設定変更とNEW RUNで進行・設定それぞれの保存値を保護'
   writeSoundSettings();
   assert.equal(serialize(s), before);
   assert.equal(s.lastSave, 2000);
-  assert.equal(data.get(SETTINGS_KEY), JSON.stringify({ soundEnabled: false }));
+  assert.equal(data.get(SETTINGS_KEY), JSON.stringify({ bgmEnabled: false, sfxEnabled: false }));
   const settings = data.get(SETTINGS_KEY);
   resetRun(1000);
-  assert.equal(run.settings.soundEnabled, false);
+  assert.equal(run.settings.bgmEnabled, false);
   assert.equal(data.get(SETTINGS_KEY), settings);
   assert.equal(liveState().scrap, 0);
 });
@@ -205,10 +208,10 @@ test('音声設定も非ownedで共有保存にアクセスせず一時プレイ
   for (const mode of ['blocked', 'ephemeral', 'released', 'acquiring'] as const) {
     calls.length = 0;
     run.mode = mode;
-    run.settings.soundEnabled = false;
+    run.settings.bgmEnabled = false;
     initializeSoundSettings();
     setSoundEnabled(true);
-    assert.equal(run.settings.soundEnabled, mode === 'ephemeral');
+    assert.equal(run.settings.bgmEnabled, mode === 'ephemeral');
     assert.equal(writeSoundSettings(), false);
     assert.deepEqual(calls, []);
   }
@@ -216,7 +219,7 @@ test('音声設定も非ownedで共有保存にアクセスせず一時プレイ
   setSoundEnabled(false);
   initializeSoundSettings();
   resetRun();
-  assert.equal(run.settings.soundEnabled, false);
+  assert.equal(run.settings.bgmEnabled, false);
   assert.deepEqual(calls, []);
 });
 
@@ -237,10 +240,10 @@ for (const failure of ['property', 'read', 'write']) {
       });
     }
     initializeSoundSettings();
-    assert.equal(run.settings.soundEnabled, true);
+    assert.equal(run.settings.bgmEnabled, true);
     setSoundEnabled(false);
     assert.equal(writeSoundSettings(), false);
-    assert.equal(run.settings.soundEnabled, false);
+    assert.equal(run.settings.bgmEnabled, false);
     assert.equal(run.state, null);
   });
 }
@@ -333,3 +336,57 @@ test('一時プレイの実績はメモリだけに残し、保存領域に触�
   run.state = null;
   assert.deepEqual(grantAchievements(), [], 'nothing to grant without a live run');
 });
+
+for (const [value, expected] of [
+  [{ soundEnabled: false }, [false, false]],
+  [{ soundEnabled: true }, [true, true]],
+  [{ bgmEnabled: false, sfxEnabled: true }, [false, true]],
+  [{ bgmEnabled: true, sfxEnabled: false }, [true, false]],
+  [{ soundEnabled: false, bgmEnabled: true }, [true, false]],
+  [{ soundEnabled: false, sfxEnabled: true }, [false, true]],
+  [{ bgmEnabled: false, sfxEnabled: null }, [false, true]],
+  [{ soundEnabled: false, bgmEnabled: 'true' }, [false, false]],
+] as const) {
+  test(`独立音声設定の移行: ${JSON.stringify(value)}`, () => {
+    data.set(SETTINGS_KEY, JSON.stringify(value));
+    initializeSoundSettings();
+    assert.deepEqual(run.settings, { bgmEnabled: expected[0], sfxEnabled: expected[1] });
+    writeSoundSettings();
+    assert.deepEqual(JSON.parse(data.get(SETTINGS_KEY) ?? '{}'), run.settings);
+  });
+}
+
+test('個別setterは他方に触れずモード別制限を守る', () => {
+  for (const mode of ['owned', 'ephemeral', 'blocked', 'acquiring', 'released'] as const) {
+    run.mode = mode;
+    run.settings = { bgmEnabled: true, sfxEnabled: true };
+    setBgmEnabled(false);
+    assert.equal(run.settings.bgmEnabled, mode !== 'owned' && mode !== 'ephemeral');
+    assert.equal(run.settings.sfxEnabled, true);
+    setSfxEnabled(false);
+    assert.equal(run.settings.sfxEnabled, run.settings.bgmEnabled);
+  }
+});
+
+for (const mode of ['owned', 'ephemeral'] as const) {
+  test(`${mode}: タイトル復帰の精算と継続で収益を二重加算しない`, () => {
+    run.mode = mode;
+    run.now = () => 1000;
+    initializeRun(1000, 1000);
+    const original = liveState();
+    original.owned[0] = 4;
+    run.achievements = { dig_100: 123 };
+    setBgmEnabled(false);
+    run.now = () => 61000;
+    settleRun();
+    writeSave(original, 61000);
+    const scrap = original.scrap;
+    assert.equal(initializeRun(61000, 61000), 0);
+    settleRun();
+    assert.equal(run.state, original);
+    assert.equal(original.scrap, scrap);
+    assert.equal(original.playTime, 60);
+    assert.equal(run.settings.bgmEnabled, false);
+    assert.deepEqual(run.achievements, { dig_100: 123 });
+  });
+}

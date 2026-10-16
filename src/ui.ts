@@ -2,6 +2,7 @@
 import Phaser from 'phaser';
 import { toggleSound } from './audio.ts';
 import { COLOR, HEIGHT, SESSION_UI } from './config.ts';
+import { openSettings } from './settings.ts';
 import { run } from './storage.ts';
 
 export const FONT = '"Courier New", Courier, monospace';
@@ -103,24 +104,12 @@ export function plateButton(
   return { g, text: t, zone, redraw };
 }
 
-/** 開始・達成画面でも同じ音声操作を使う。 */
-export function addSoundControl(scene: Phaser.Scene): void {
-  let text: Phaser.GameObjects.Text;
-  const toggle = (): void => {
-    toggleSound(scene);
-    text.setText(run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF');
+/** 各画面で同じSettings入口とMキー操作を使う。 */
+export function addSettingsControl(scene: Phaser.Scene): void {
+  plateButton(scene, 1120, 16, 140, 34, 'SETTINGS', 16, () => openSettings(scene));
+  const toggle = (event: KeyboardEvent): void => {
+    if (!event.repeat) toggleSound(scene);
   };
-  const button = plateButton(
-    scene,
-    1120,
-    16,
-    140,
-    34,
-    run.settings.soundEnabled ? 'SOUND:ON' : 'SOUND:OFF',
-    16,
-    toggle,
-  );
-  text = button.text;
   scene.input.keyboard?.on('keydown-M', toggle);
   scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.input.keyboard?.off('keydown-M', toggle));
 }

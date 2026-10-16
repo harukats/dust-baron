@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { ACHIEVEMENTS, COLOR, HEIGHT, TEX, WIDTH } from '../config.ts';
 import { run } from '../storage.ts';
-import { addBackdrop, addSoundControl, addTemporaryNotice, drawPlate, label, plateButton } from '../ui.ts';
+import { addBackdrop, addSettingsControl, addTemporaryNotice, drawPlate, label, plateButton } from '../ui.ts';
 
 const COLS = 3;
 const ROWS = Math.ceil(ACHIEVEMENTS.length / COLS);
@@ -14,7 +14,7 @@ export class Achievements extends Phaser.Scene {
 
   create(): void {
     addBackdrop(this, TEX.background);
-    addSoundControl(this);
+    addSettingsControl(this);
     addTemporaryNotice(this);
     this.add.rectangle(0, 0, WIDTH, HEIGHT, COLOR.shadow, 0.6).setOrigin(0);
 

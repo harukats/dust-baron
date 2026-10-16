@@ -44,6 +44,40 @@ export const SFX: Record<string, Voice[]> = {
   ],
 };
 
+interface SfxOutput {
+  gain: GainNode;
+  sources: Set<AudioScheduledSourceNode>;
+}
+
+const outputs = new WeakMap<Phaser.Sound.BaseSoundManager, SfxOutput>();
+
+export function applySfxSettings(manager: Phaser.Sound.BaseSoundManager): void {
+  const output = outputs.get(manager);
+  if (!output) return;
+  output.gain.gain.setValueAtTime(run.settings.sfxEnabled ? 1 : 0, output.gain.context.currentTime);
+  if (!run.settings.sfxEnabled) {
+    for (const source of output.sources) source.stop();
+  }
+}
+
+function sfxOutput(manager: Phaser.Sound.WebAudioSoundManager): SfxOutput {
+  let output = outputs.get(manager);
+  if (output) return output;
+  const gain = manager.context.createGain();
+  gain.gain.value = run.settings.sfxEnabled ? 1 : 0;
+  gain.connect(manager.destination);
+  output = { gain, sources: new Set() };
+  const created = output;
+  outputs.set(manager, output);
+  manager.game.events.once('destroy', () => {
+    for (const source of created.sources) source.stop();
+    created.sources.clear();
+    gain.disconnect();
+    outputs.delete(manager);
+  });
+  return output;
+}
+
 export class Sfx {
   private manager: Phaser.Sound.BaseSoundManager;
   private noise: AudioBuffer | null = null;
@@ -52,20 +86,20 @@ export class Sfx {
     this.manager = manager;
   }
 
-  private graph(): { ctx: AudioContext; out: AudioNode } | null {
+  private graph(): { ctx: AudioContext; output: SfxOutput } | null {
     const m = this.manager as Phaser.Sound.WebAudioSoundManager;
     if (!m.context || !m.destination || m.context.state !== 'running') return null;
-    return { ctx: m.context, out: m.destination };
+    return { ctx: m.context, output: sfxOutput(m) };
   }
 
   play(name: keyof typeof SFX): void {
-    if (!run.settings.soundEnabled || this.manager.mute) return;
+    if (!run.settings.sfxEnabled || this.manager.mute) return;
     const gr = this.graph();
     if (!gr) return;
-    for (const v of SFX[name] ?? []) this.voice(gr.ctx, gr.out, v);
+    for (const v of SFX[name] ?? []) this.voice(gr.ctx, gr.output, v);
   }
 
-  private voice(ctx: AudioContext, out: AudioNode, v: Voice): void {
+  private voice(ctx: AudioContext, output: SfxOutput, v: Voice): void {
     const t0 = ctx.currentTime + (v.delay ?? 0);
     const dur = v.notes ? v.notes.length * (v.step ?? 0.1) : (v.dur ?? 0.15);
     const vol = v.vol ?? 0.3;
@@ -86,7 +120,7 @@ export class Sfx {
       f.connect(gain);
       head = f;
     }
-    gain.connect(out);
+    gain.connect(output.gain);
 
     let src: AudioScheduledSourceNode;
     if (v.type === 'noise') {
@@ -107,6 +141,14 @@ export class Sfx {
       }
       src = o;
     }
+    output.sources.add(src);
+    src.onended = () => {
+      output.sources.delete(src);
+      src.disconnect();
+      if (head !== gain) head.disconnect();
+      gain.disconnect();
+      src.onended = null;
+    };
     src.connect(head);
     src.start(t0);
     src.stop(t0 + dur + 0.05);
