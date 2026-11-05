@@ -1,12 +1,12 @@
 ---
+
 name: "speckit-constitution"
 description: "Create or update the project constitution from interactive or provided principle inputs."
 compatibility: "Requires spec-kit project structure with .specify/ directory"
 metadata:
-  author: "github-spec-kit"
-  source: "templates/commands/constitution.md"
+author: "github-spec-kit"
+source: "templates/commands/constitution.md"
 ---
-
 
 ## User Input
 
@@ -48,6 +48,7 @@ and commands read the constitution at runtime and are not modified here.
 - When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `$speckit-git-commit`.
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
+
     ```
     ## Extension Hooks
 
@@ -59,6 +60,7 @@ and commands read the constitution at runtime and are not modified here.
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
+
     ```
     ## Extension Hooks
 
@@ -68,6 +70,7 @@ and commands read the constitution at runtime and are not modified here.
 
     Wait for the result of the hook command before proceeding to the Outline.
     ```
+
     After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
@@ -90,7 +93,7 @@ Follow this execution flow:
    - If it does not exist, use the resolved template as the initial document.
    - Do not write back to any versioned template layer.
    - Identify every placeholder token of the form `[ALL_CAPS_IDENTIFIER]`.
-   **IMPORTANT**: The user might require less or more principles than the ones used in the template. If a number is specified, respect that - follow the general template. You will update the doc accordingly.
+     **IMPORTANT**: The user might require less or more principles than the ones used in the template. If a number is specified, respect that - follow the general template. You will update the doc accordingly.
 
 2. Collect/derive values for placeholders:
    - If user input (conversation) supplies a value, use it.
@@ -157,6 +160,7 @@ Check if `.specify/extensions.yml` exists in the project root.
 - When constructing command invocations from hook command names, replace dots (`.`) with hyphens (`-`). For example, `speckit.git.commit` → `$speckit-git-commit`.
 - For each executable hook, output the following based on its `optional` flag:
   - **Optional hook** (`optional: true`):
+
     ```
     ## Extension Hooks
 
@@ -168,6 +172,7 @@ Check if `.specify/extensions.yml` exists in the project root.
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
+
     ```
     ## Extension Hooks
 
@@ -175,5 +180,6 @@ Check if `.specify/extensions.yml` exists in the project root.
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
     ```
+
     After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently

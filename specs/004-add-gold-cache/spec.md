@@ -14,7 +14,7 @@
 
 - Q: ゴールド・キャッシュの出現方法は、既存キャッシュの出現時に10%の確率でゴールドへ置き換える方式にしますか? → A: 既存の出現機会を共有し、ゴールド10%・クローム90%とする。ゴールド出現時は専用の特別なアイコン（スプライト）を使用する。
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - 回収して採掘を加速する (Priority: P1)
 
@@ -76,7 +76,7 @@
 - タイトル・勝利画面から採掘画面へ入り直す際と新規ランでは一時効果を解除する。継続ランの資源は保持する。
 - 777倍効果中のクローム即時報酬は従来の算定方法を維持し、777倍しない。
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -97,7 +97,7 @@
 - **採掘倍率効果**: 7倍または777倍の倍率と終了時刻を持つ。同時に有効な効果は1つ。
 - **ランの進行**: 資源、累計獲得量、設備、装備。効果中に得た資源も通常の進行として扱う。
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
