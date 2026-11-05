@@ -4,16 +4,16 @@
 
 既存 `State` とJSONのフィールド名を維持する。UIのCreditsは `scrap` に対応する。新規サーバーや通貨変換はない。
 
-| フィールド | 型・単位 | 初期値 | 検証・意味 |
-| --- | --- | --- | --- |
-| scrap | number / Credits | 0 | 有限・非負。利用可能残高 |
-| total | number / Credits | 0 | 有限・非負。累計収入。正常な値は保持し、既存のtotal以上scrapの整合を維持 |
-| clicks | number / 回 | 0 | 非負整数。手動採掘回数 |
-| owned | number[6] | 各0 | GENSの順序で各種類の非負整数。種類単位で復旧 |
-| pick | number / レベル | 0 | 非負整数。Forge Pick |
-| won | boolean | false | Dust Crownの一度だけの達成 |
-| playTime | number / 秒 | 0 | 有限・非負。ゲーム開始後の経過 |
-| lastSave | number / epoch ms | 0 | 正常な成功保存日時。0は未保存・無効の印 |
+| フィールド | 型・単位          | 初期値 | 検証・意味                                                               |
+| ---------- | ----------------- | ------ | ------------------------------------------------------------------------ |
+| scrap      | number / Credits  | 0      | 有限・非負。利用可能残高                                                 |
+| total      | number / Credits  | 0      | 有限・非負。累計収入。正常な値は保持し、既存のtotal以上scrapの整合を維持 |
+| clicks     | number / 回       | 0      | 非負整数。手動採掘回数                                                   |
+| owned      | number[6]         | 各0    | GENSの順序で各種類の非負整数。種類単位で復旧                             |
+| pick       | number / レベル   | 0      | 非負整数。Forge Pick                                                     |
+| won        | boolean           | false  | Dust Crownの一度だけの達成                                               |
+| playTime   | number / 秒       | 0      | 有限・非負。ゲーム開始後の経過                                           |
+| lastSave   | number / epoch ms | 0      | 正常な成功保存日時。0は未保存・無効の印                                  |
 
 不正・欠落した項目は初期値へ戻す。整数項目の小数は切り捨てない。配列の余剰要素は読まず、不足部分を0にする。
 rootはnull・配列ではないオブジェクトで、上記の既知進行項目を少なくとも1つ持つ必要がある。不明項目は無視する。
@@ -33,14 +33,14 @@ Forge Pickは残高とレベル、Dust Crownは残高とwonを同時更新する
 
 ## 永続化しないライブ状態
 
-| 概念 | フィールド候補 | 責務 |
-| --- | --- | --- |
-| ライブrun | state: State または null | シーンをまたぐ同じ進行 |
-| 生産カーソル | accountedAtMs: number | 起動epochに単調経過を加えたライブ時計で、この時刻まで精算済み |
-| ライブ時計 | now: () => number | 呼び出し側で注入。保存日時の実日時とは独立し、セーブに書かない |
-| セッション | status: acquiring / owned / blocked / ephemeral / released | プレイと保存を許可する状態 |
-| ロック | name、保持Promiseの解放関数 | 保存キーごとの排他。セーブに書かない |
-| 一時効果 | stormEndsAtMs、frenzyEndsAtMs、cacheExpiresAtMs | 実時刻に基づく失効 |
+| 概念         | フィールド候補                                             | 責務                                                           |
+| ------------ | ---------------------------------------------------------- | -------------------------------------------------------------- |
+| ライブrun    | state: State または null                                   | シーンをまたぐ同じ進行                                         |
+| 生産カーソル | accountedAtMs: number                                      | 起動epochに単調経過を加えたライブ時計で、この時刻まで精算済み  |
+| ライブ時計   | now: () => number                                          | 呼び出し側で注入。保存日時の実日時とは独立し、セーブに書かない |
+| セッション   | status: acquiring / owned / blocked / ephemeral / released | プレイと保存を許可する状態                                     |
+| ロック       | name、保持Promiseの解放関数                                | 保存キーごとの排他。セーブに書かない                           |
+| 一時効果     | stormEndsAtMs、frenzyEndsAtMs、cacheExpiresAtMs            | 実時刻に基づく失効                                             |
 
 カーソルは成功保存日時とは独立する。精算してからカーソルを前へ進め、同じ時刻の再精算は0とする。
 生産・購入・採掘はownedとephemeralが実行できる。共有保存の読込・書込・削除はownedだけが実行する。blockedはStateを初期化・読み込みしない。ephemeralはnewStateからメモリ内runを開始し、離席収入を与えない。
